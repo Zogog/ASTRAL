@@ -1,27 +1,14 @@
 --========================================================--
 --                 ASTRAL.Core.Ailments
---      Centralized ailment logic for all modules
 --========================================================--
-
-local Utils = require(script.Parent.Utils)
 
 local Ailments = {}
 
---========================================================--
---                 NORMALIZATION
---========================================================--
-
 local function Normalize(ailment)
     if not ailment then return nil end
-    return Utils.Normalize(ailment)
+    return string.lower(tostring(ailment))
 end
 
---========================================================--
---                 AILMENT ROUTING MAP
---========================================================--
-
--- This table defines where each ailment should be solved.
--- Modules can use this to decide where to teleport.
 Ailments.Routes = {
     hungry   = "Home",
     thirsty  = "Home",
@@ -31,13 +18,7 @@ Ailments.Routes = {
     school   = "School",
     hospital = "Hospital",
     salon    = "Salon",
-
-    -- Future ailments can be added here
 }
-
---========================================================--
---                 AILMENT CATEGORIES
---========================================================--
 
 Ailments.Categories = {
     Home = {
@@ -60,16 +41,10 @@ Ailments.Categories = {
     },
 }
 
---========================================================--
---                 PUBLIC HELPERS
---========================================================--
-
--- Returns the normalized ailment name
 function Ailments.NormalizeAilment(ailment)
     return Normalize(ailment)
 end
 
--- Returns the category (Home, School, Hospital, Salon)
 function Ailments.GetCategory(ailment)
     ailment = Normalize(ailment)
     if not ailment then return nil end
@@ -83,13 +58,11 @@ function Ailments.GetCategory(ailment)
     return nil
 end
 
--- Returns the recommended teleport location
 function Ailments.GetRoute(ailment)
     ailment = Normalize(ailment)
     return Ailments.Routes[ailment]
 end
 
--- Returns true if the ailment is disabled
 function Ailments.IsDisabled(ailment, disabledList)
     ailment = Normalize(ailment)
     if not ailment then return true end
@@ -103,7 +76,6 @@ function Ailments.IsDisabled(ailment, disabledList)
     return false
 end
 
--- Filters an ailment table based on disabled ailments
 function Ailments.FilterAilments(ailmentTable, disabledList)
     local result = {}
 
@@ -117,15 +89,10 @@ function Ailments.FilterAilments(ailmentTable, disabledList)
     return result
 end
 
--- Returns true if the ailment requires teleporting
 function Ailments.RequiresTeleport(ailment)
     ailment = Normalize(ailment)
     local route = Ailments.Routes[ailment]
     return route ~= nil and route ~= "Home"
 end
-
---========================================================--
---                 EXPORT
---========================================================--
 
 return Ailments
