@@ -1,6 +1,6 @@
 --========================================================--
 --                 ASTRAL.Modules.AutoNeeds
---      Clean, modular auto-needs system (Hybrid v1)
+--      Advanced v2 — Dual Pets, Eggs, Baby, Movement
 --========================================================--
 
 local Settings = require(script.Parent.Parent.UI.Settings)
@@ -13,12 +13,18 @@ local AutoNeeds = {}
 --========================================================--
 
 local running = false
-local disabledAilments = {}
-local selectedPet = nil
-local selectedBaby = false
+
+local Selected = {
+    Pet1 = nil,
+    Pet2 = nil,
+    Baby = false,
+}
+
+local DisabledAilments = {}
+local MovementMode = "Idle" -- Idle / Platform / Circle
 
 --========================================================--
---                 INTERNAL HELPERS
+--                 LOGGING
 --========================================================--
 
 local function Log(msg)
@@ -29,74 +35,123 @@ local function WaitTick()
     task.wait(Settings.GetTickDelay())
 end
 
-local function GetAilments(API)
-    if not selectedPet then return {} end
+--========================================================--
+--                 MOVEMENT SYSTEM
+--========================================================--
 
-    return API.GetAilments(
-        selectedPet,
-        nil, -- second pet (future expansion)
-        selectedBaby and "BABY" or nil,
-        disabledAilments
-    )
+local function DoMovement(mode)
+    if mode == "Idle" then
+        return
+    end
+
+    local root = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    if mode == "Platform" then
+        root.CFrame = root.CFrame + Vector3.new(0, 0.1, 0)
+    elseif mode == "Circle" then
+        local t = tick()
+        root.CFrame = root.CFrame * CFrame.new(math.sin(t) * 0.5, 0, math.cos(t) * 0.5)
+    end
 end
 
+--========================================================--
+--                 PET SWITCHING
+--========================================================--
+
+local function SwitchIfFullGrown(API, petUnique)
+    local cfg = API.GetPlayersPetConfigs(petUnique)
+    if cfg.petAge < 6 then return petUnique end
+
+    Log("Pet full grown — switching")
+
+    local nextPet = API.GetSameKind(Selected.Pet1, Selected.Pet2, cfg.petKind)
+    if nextPet then
+        Log("Switching to same kind: " .. nextPet)
+        return nextPet
+    end
+
+    local randomPet = API.GetRandomKind(petUnique)
+    if randomPet then
+        Log("Switching to random pet of same type")
+        return randomPet
+    end
+
+    Log("No replacement pet found")
+    return petUnique
+end
+
+local function SwitchIfEggHatched(API, petUnique)
+    if not API.GetPetConfigs(API.GetPlayersPetConfigs(petUnique).petKind).isEgg then
+        return petUnique
+    end
+
+    if API.IsEggNotThere(petUnique) then
+        Log("Egg hatched — switching")
+        return API.GetRandomKind(petUnique)
+    end
+
+    return petUnique
+end
+
+--========================================================--
+--                 AILMENT SOLVING
+--========================================================--
+
 local function SolveAilment(API, ailment)
-    -- Basic routing logic
+    ailment = ailment:lower()
+
     if ailment == "hungry" or ailment == "thirsty" then
-        Log("Going home for food/water")
         API.GoToHome()
         WaitTick()
         return
     end
 
     if ailment == "sleepy" then
-        Log("Going home for sleep")
         API.GoToHome()
         WaitTick()
         return
     end
 
     if ailment == "dirty" then
-        Log("Going home for shower")
         API.GoToHome()
         WaitTick()
         return
     end
 
     if ailment == "school" then
-        Log("Going to School")
         API.GoToStore("School")
         WaitTick()
         return
     end
 
     if ailment == "hospital" then
-        Log("Going to Hospital")
         API.GoToStore("Hospital")
         WaitTick()
         return
     end
 
     if ailment == "salon" then
-        Log("Going to Salon")
         API.GoToStore("Salon")
         WaitTick()
         return
     end
 
-    -- Unknown ailment (future expansion)
-    Log("Unknown ailment: " .. tostring(ailment))
+    Log("Unknown ailment: " .. ailment)
 end
 
-local function SolveAllAilments(API, ailmentTable)
-    -- First pet
-    for ailment, _ in pairs(ailmentTable.FirstPet) do
+local function SolveAll(API, ailments)
+    for ailment in pairs(ailments.FirstPet) do
         SolveAilment(API, ailment)
         WaitTick()
     end
 
-    -- Baby
-    for ailment, _ in pairs(ailmentTable.Baby) do
+    for ailment in pairs(ailments.SecondPet) do
+        SolveAilment(API, ailment)
+        WaitTick()
+    end
+
+    for ailment in pairs(ailments.Baby) do
         SolveAilment(API, ailment)
         WaitTick()
     end
@@ -108,45 +163,63 @@ end
 
 local function StartLoop(API)
     running = true
-    Log("AutoNeeds started")
+    Log("AutoNeeds Advanced v2 started")
 
     while running do
         task.wait()
 
-        if not selectedPet then
-            Log("No pet selected")
+        DoMovement(MovementMode)
+
+        -- Validate pets
+        if not Selected.Pet1 then
+            Log("No Pet 1 selected")
             task.wait(1)
             continue
         end
 
-        -- Ensure pet is equipped
+        -- Auto-switch full grown
+        Selected.Pet1 = SwitchIfFullGrown(API, Selected.Pet1)
+        Selected.Pet2 = Selected.Pet2 and SwitchIfFullGrown(API, Selected.Pet2)
+
+        -- Auto-switch eggs
+        Selected.Pet1 = SwitchIfEggHatched(API, Selected.Pet1)
+        Selected.Pet2 = Selected.Pet2 and SwitchIfEggHatched(API, Selected.Pet2)
+
+        -- Ensure pets equipped
         local equipped = API.GetPlayersEquippedPets()
-        local found = false
+        local has1, has2 = false, false
 
         for _, v in pairs(equipped) do
-            if v.unique == selectedPet then
-                found = true
-                break
-            end
+            if v.unique == Selected.Pet1 then has1 = true end
+            if v.unique == Selected.Pet2 then has2 = true end
         end
 
-        if not found then
-            Log("Equipping pet: " .. selectedPet)
-            API.EquipPet(selectedPet)
+        if not has1 then
+            API.EquipPet(Selected.Pet1)
+            WaitTick()
+        end
+
+        if Selected.Pet2 and not has2 then
+            API.EquipPet(Selected.Pet2)
             WaitTick()
         end
 
         -- Get ailments
-        local ailments = GetAilments(API)
+        local ailments = API.GetAilments(
+            Selected.Pet1,
+            Selected.Pet2,
+            Selected.Baby and "BABY" or nil,
+            DisabledAilments
+        )
 
-        if Utils.IsEmpty(ailments.FirstPet) and Utils.IsEmpty(ailments.Baby) then
-            -- No needs
+        if Utils.IsEmpty(ailments.FirstPet)
+        and Utils.IsEmpty(ailments.SecondPet)
+        and Utils.IsEmpty(ailments.Baby) then
             task.wait(1)
             continue
         end
 
-        -- Solve ailments
-        SolveAllAilments(API, ailments)
+        SolveAll(API, ailments)
     end
 
     Log("AutoNeeds stopped")
@@ -159,9 +232,9 @@ end
 function AutoNeeds.Init(Tabs, API)
     local tab = Tabs.Autofarm
 
-    tab:CreateSection("Auto Needs")
+    tab:CreateSection("Auto Needs — Advanced v2")
 
-    -- Toggle
+    -- Enable toggle
     tab:CreateToggle({
         Name = "Enable Auto Needs",
         CurrentValue = false,
@@ -174,18 +247,21 @@ function AutoNeeds.Init(Tabs, API)
         end,
     })
 
-    -- Pet selection
+    -- Pet 1
     tab:CreateInput({
-        Name = "Pet Unique ID",
+        Name = "Pet 1 Unique ID",
         PlaceholderText = "Enter pet unique ID",
-        RemoveTextAfterFocusLost = false,
         Callback = function(text)
-            if text == "" then
-                selectedPet = nil
-                return
-            end
-            selectedPet = text
-            Log("Selected pet: " .. text)
+            Selected.Pet1 = text ~= "" and text or nil
+        end,
+    })
+
+    -- Pet 2
+    tab:CreateInput({
+        Name = "Pet 2 Unique ID (optional)",
+        PlaceholderText = "Enter pet unique ID",
+        Callback = function(text)
+            Selected.Pet2 = text ~= "" and text or nil
         end,
     })
 
@@ -194,23 +270,29 @@ function AutoNeeds.Init(Tabs, API)
         Name = "Include Baby Needs",
         CurrentValue = false,
         Callback = function(state)
-            selectedBaby = state
+            Selected.Baby = state
         end,
     })
 
     -- Disabled ailments
     tab:CreateInput({
         Name = "Disabled Ailments (comma separated)",
-        PlaceholderText = "Example: school,hospital",
-        RemoveTextAfterFocusLost = false,
+        PlaceholderText = "school,hospital,salon",
         Callback = function(text)
-            disabledAilments = {}
-
+            DisabledAilments = {}
             for ail in string.gmatch(text, "([^,]+)") do
-                table.insert(disabledAilments, Utils.Normalize(ail))
+                table.insert(DisabledAilments, Utils.Normalize(ail))
             end
+        end,
+    })
 
-            Log("Disabled ailments updated")
+    -- Movement mode
+    tab:CreateDropdown({
+        Name = "Movement Mode",
+        Options = {"Idle", "Platform", "Circle"},
+        CurrentOption = "Idle",
+        Callback = function(opt)
+            MovementMode = opt
         end,
     })
 
