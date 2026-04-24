@@ -9,11 +9,13 @@ function Extras.Init(Tabs, Core, UI)
     local tab = Tabs.Extras
     local RunService = game:GetService("RunService")
     local VirtualUser = game:GetService("VirtualUser")
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
 
     tab:CreateSection("Player Movement")
 
     --------------------------------------------------------
-    -- WalkSpeed (patched to use Core.Movement)
+    -- WalkSpeed (TBIGUI-style)
     --------------------------------------------------------
     tab:CreateSlider({
         Name = "WalkSpeed",
@@ -23,16 +25,15 @@ function Extras.Init(Tabs, Core, UI)
         CurrentValue = 16,
 
         Callback = function(value)
-            if Core.Movement and Core.Movement.SetWalkSpeed then
-                Core.Movement.SetWalkSpeed(value)
-            else
-                warn("[ASTRAL] Movement.SetWalkSpeed missing")
-            end
+            local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+            local hum = char:WaitForChild("Humanoid")
+
+            hum.WalkSpeed = value
         end,
     })
 
     --------------------------------------------------------
-    -- JumpPower (patched to use Core.Movement)
+    -- JumpPower (TBIGUI-style)
     --------------------------------------------------------
     tab:CreateSlider({
         Name = "JumpPower",
@@ -42,11 +43,10 @@ function Extras.Init(Tabs, Core, UI)
         CurrentValue = 50,
 
         Callback = function(value)
-            if Core.Movement and Core.Movement.SetJumpPower then
-                Core.Movement.SetJumpPower(value)
-            else
-                warn("[ASTRAL] Movement.SetJumpPower missing")
-            end
+            local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+            local hum = char:WaitForChild("Humanoid")
+
+            hum.JumpPower = value
         end,
     })
 
@@ -116,7 +116,7 @@ function Extras.Init(Tabs, Core, UI)
 
         Callback = function(state)
             if state then
-                Extras.AntiAFKConnection = Core.LocalPlayer.Idled:Connect(function()
+                Extras.AntiAFKConnection = LocalPlayer.Idled:Connect(function()
                     VirtualUser:CaptureController()
                     VirtualUser:ClickButton2(Vector2.new())
                 end)
