@@ -9,228 +9,55 @@ local ASTRAL = {
 }
 
 --========================================================--
---                 INTERNAL MODULE LOADER
+--                 CORE MODULES
 --========================================================--
 
-local function LoadModule(source)
-    local fn = loadstring(source)
-    return fn()
-end
+ASTRAL.Core.AdoptMeAPI = require(script.Core.AdoptMeAPI)
+ASTRAL.Core.Utils       = require(script.Core.Utils)
+ASTRAL.Core.Pets        = require(script.Core.Pets)
+ASTRAL.Core.Teleport    = require(script.Core.Teleport)
+ASTRAL.Core.Ailments    = require(script.Core.Ailments)
+ASTRAL.Core.Inventory   = require(script.Core.Inventory)
+ASTRAL.Core.Movement    = require(script.Core.Movement)
 
 --========================================================--
---                 CORE MODULES (EMPTY)
+--                 UI MODULES
 --========================================================--
 
-ASTRAL.Core.AdoptMeAPI = LoadModule([[
-    -- AdoptMeAPI Backend Wrapper
-    -- Paste your AdoptMeAPI.txt content inside this module later
-
-    local API = {}
-
-    function API.Init()
-        -- placeholder
-    end
-
-    return API
-]])
-
-ASTRAL.Core.Utils = LoadModule([[
-    local Utils = {}
-
-    function Utils.NaturalSort(a, b)
-        local function pad(n) return ("%09d"):format(tonumber(n) or 0) end
-        a = a:gsub("(%d+)", pad)
-        b = b:gsub("(%d+)", pad)
-        return a < b
-    end
-
-    function Utils.FirstSix(str)
-        return string.sub(str, 1, 6)
-    end
-
-    function Utils.IsLetters(str)
-        return str:match("^[A-Za-z]+$") ~= nil
-    end
-
-    return Utils
-]])
-
-ASTRAL.Core.Pets = LoadModule([[
-    local Pets = {}
-
-    function Pets.Init()
-        -- placeholder
-    end
-
-    return Pets
-]])
-
-ASTRAL.Core.Teleport = LoadModule([[
-    local Teleport = {}
-
-    function Teleport.Init()
-        -- placeholder
-    end
-
-    return Teleport
-]])
-
-ASTRAL.Core.Ailments = LoadModule([[
-    local Ailments = {}
-
-    function Ailments.Init()
-        -- placeholder
-    end
-
-    return Ailments
-]])
-
-ASTRAL.Core.Inventory = LoadModule([[
-    local Inventory = {}
-
-    function Inventory.Init()
-        -- placeholder
-    end
-
-    return Inventory
-]])
-
-ASTRAL.Core.Movement = LoadModule([[
-    local Movement = {}
-
-    function Movement.Init()
-        -- placeholder
-    end
-
-    return Movement
-]])
+ASTRAL.UI.RayfieldInit = require(script.UI.RayfieldInit)
+ASTRAL.UI.Tabs         = require(script.UI.Tabs)
+ASTRAL.UI.Dropdowns    = require(script.UI.Dropdowns)
+ASTRAL.UI.Settings     = require(script.UI.Settings)
 
 --========================================================--
---                 UI MODULES (EMPTY)
+--                 FEATURE MODULES
 --========================================================--
 
-ASTRAL.UI.RayfieldInit = LoadModule([[
-    local UI = {}
-
-    function UI.Init()
-        local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
-
-        local Window = Rayfield:CreateWindow({
-            Name = "ASTRAL Hub",
-            LoadingTitle = "ASTRAL",
-            LoadingSubtitle = "Initializing...",
-            Theme = "Default",
-            DisableRayfieldPrompts = true,
-        })
-
-        return Window
-    end
-
-    return UI
-]])
-
-ASTRAL.UI.Tabs = LoadModule([[
-    local Tabs = {}
-
-    function Tabs.Create(Window)
-        return {
-            Main = Window:CreateTab("Main", "home"),
-            Pets = Window:CreateTab("Pets", "paw-print"),
-            Teleports = Window:CreateTab("Teleports", "map"),
-            Autofarm = Window:CreateTab("Autofarm", "sparkles"),
-            Misc = Window:CreateTab("Misc", "settings"),
-        }
-    end
-
-    return Tabs
-]])
-
---========================================================--
---                 FEATURE MODULES (EMPTY)
---========================================================--
-
-ASTRAL.Modules.PetViewer = LoadModule([[
-    local M = {}
-
-    function M.Init(Tabs, API)
-        -- placeholder
-    end
-
-    return M
-]])
-
-ASTRAL.Modules.TeleportHub = LoadModule([[
-    local M = {}
-
-    function M.Init(Tabs, API)
-        -- placeholder
-    end
-
-    return M
-]])
-
-ASTRAL.Modules.AutoNeeds = LoadModule([[
-    local M = {}
-
-    function M.Init(Tabs, API)
-        -- placeholder
-    end
-
-    return M
-]])
-
-ASTRAL.Modules.AutoPotions = LoadModule([[
-    local M = {}
-
-    function M.Init(Tabs, API)
-        -- placeholder
-    end
-
-    return M
-]])
-
-ASTRAL.Modules.AutoEggs = LoadModule([[
-    local M = {}
-
-    function M.Init(Tabs, API)
-        -- placeholder
-    end
-
-    return M
-]])
-
-ASTRAL.Modules.BabyFarm = LoadModule([[
-    local M = {}
-
-    function M.Init(Tabs, API)
-        -- placeholder
-    end
-
-    return M
-]])
-
-ASTRAL.Modules.Webhooks = LoadModule([[
-    local M = {}
-
-    function M.Init(Tabs, API)
-        -- placeholder
-    end
-
-    return M
-]])
+ASTRAL.Modules.PetViewer   = require(script.Modules.PetViewer)
+ASTRAL.Modules.TeleportHub = require(script.Modules.TeleportHub)
+ASTRAL.Modules.AutoNeeds   = require(script.Modules.AutoNeeds)
+ASTRAL.Modules.AutoPotions = require(script.Modules.AutoPotions)
+ASTRAL.Modules.AutoEggs    = require(script.Modules.AutoEggs)
+ASTRAL.Modules.BabyFarm    = require(script.Modules.BabyFarm)
+ASTRAL.Modules.Webhooks    = require(script.Modules.Webhooks)
 
 --========================================================--
 --                 ASTRAL INITIALIZATION
 --========================================================--
 
+-- Create Rayfield window
 local Window = ASTRAL.UI.RayfieldInit.Init()
+
+-- Create tabs
 local Tabs = ASTRAL.UI.Tabs.Create(Window)
 
--- Initialize all modules
+-- Initialize all Core + Modules
 for _, folder in pairs({ASTRAL.Core, ASTRAL.Modules}) do
     for name, module in pairs(folder) do
         if type(module) == "table" and module.Init then
-            module.Init(Tabs, ASTRAL.Core.AdoptMeAPI)
+            task.spawn(function()
+                module.Init(Tabs, ASTRAL.Core.AdoptMeAPI)
+            end)
         end
     end
 end
