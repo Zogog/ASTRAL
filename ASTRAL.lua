@@ -77,6 +77,7 @@ ASTRAL.Modules.Main        = safeImport("Modules/Main.lua")
 ASTRAL.Modules.AutoNeeds   = safeImport("Modules/AutoNeeds.lua")
 ASTRAL.Modules.TeleportHub = safeImport("Modules/TeleportHub.lua")
 ASTRAL.Modules.PetViewer   = safeImport("Modules/PetViewer.lua")
+ASTRAL.Modules.Extras      = safeImport("Modules/Extras.lua")
 
 -- BabyFarm removed
 -- InventoryDebug removed
