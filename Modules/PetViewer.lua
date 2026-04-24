@@ -43,7 +43,6 @@ end
 
 function PetViewer.Init(Tabs, Core, UI)
     local API = Core.AdoptMeAPI
-    local Utils = Core.Utils
     local tab = Tabs.Pets
 
     tab:CreateSection("Pet Viewer")
@@ -82,14 +81,21 @@ function PetViewer.Init(Tabs, Core, UI)
         Content = "Select a pet to view details.",
     })
 
+    --------------------------------------------------------
+    -- EQUIP BUTTON (FIXED)
+    --------------------------------------------------------
+
     tab:CreateButton({
         Name = "Equip Selected Pet",
         Callback = function()
-            if PetViewer.Selected then
-                API.EquipPet(PetViewer.Selected.id)
-                if Core.SetEquippedPet then
-                    Core.SetEquippedPet(PetViewer.Selected.id)
-                end
+            local pet = PetViewer.Selected
+            if not pet then return end
+
+            -- Use ASTRAL's universal equip wrapper
+            if Core.SetEquippedPet then
+                Core.SetEquippedPet(pet.id)
+            else
+                warn("[PetViewer] Core.SetEquippedPet missing")
             end
         end,
     })
