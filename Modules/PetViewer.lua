@@ -1,4 +1,13 @@
+--========================================================--
+--                 ASTRAL.Modules.PetViewer
+--        Sirius Rayfield compatible Pet Viewer
+--========================================================--
+
 local PetViewer = {}
+
+--========================================================--
+-- AGE TABLES
+--========================================================--
 
 local NORMAL_AGES = {
     [1] = "Newborn",
@@ -18,17 +27,25 @@ local NEON_AGES = {
     [6] = "Luminous",
 }
 
+--========================================================--
+-- HELPERS
+--========================================================--
+
 local function IsNeon(props)
-    return props.is_neon or props.neon
+    return props and (props.is_neon or props.neon)
 end
 
 local function IsMega(props)
-    return props.is_mega_neon or props.mega_neon
+    return props and (props.is_mega_neon or props.mega_neon)
 end
 
 local function GetAgeName(props)
-    local age = props.age or 1
-    return (IsMega(props) or IsNeon(props)) and NEON_AGES[age] or NORMAL_AGES[age]
+    local age = (props and props.age) or 1
+    if IsMega(props) or IsNeon(props) then
+        return NEON_AGES[age] or "Unknown"
+    else
+        return NORMAL_AGES[age] or "Unknown"
+    end
 end
 
 local function GetPetEmoji(props)
@@ -58,6 +75,10 @@ local function BuildPetTable(API)
     return pets
 end
 
+--========================================================--
+-- INIT
+--========================================================--
+
 function PetViewer.Init(Tabs, Core, UI)
     local API = Core.AdoptMeAPI
     local tab = Tabs.Pets
@@ -76,6 +97,9 @@ function PetViewer.Init(Tabs, Core, UI)
         Content = "Select a pet from the dropdown.",
     })
 
+    --------------------------------------------------------
+    -- Refresh pet list and rebuild dropdown options
+    --------------------------------------------------------
     local function RefreshPets()
         local pets = BuildPetTable(API)
 
@@ -89,6 +113,7 @@ function PetViewer.Init(Tabs, Core, UI)
             local emoji = GetPetEmoji(props)
             local ageName = GetAgeName(props)
 
+            -- Display string used as key
             local display = string.format("%s%s (%s) — %s", emoji, pet.kind, ageName, pet.id)
 
             table.insert(options, display)
@@ -96,12 +121,25 @@ function PetViewer.Init(Tabs, Core, UI)
         end
 
         if not PetDropdown then
+            ------------------------------------------------
+            -- Sirius Rayfield dropdown
+            ------------------------------------------------
             PetDropdown = tab:CreateDropdown({
                 Name = "Select a Pet",
                 Options = options,
+                CurrentOption = { options[1] or "None" },
+                MultipleOptions = false,
 
-                Callback = function(selected)
-                    print("[DEBUG] Rayfield dropdown returned:", selected)
+                Callback = function(_)
+                    -- In Sirius Rayfield, the real value is in CurrentOption[1]
+                    local selected = PetDropdown.CurrentOption and PetDropdown.CurrentOption[1]
+
+                    print("[DEBUG] Selected option:", selected, typeof(selected))
+
+                    if typeof(selected) ~= "string" then
+                        warn("[DEBUG] ERROR: Selected option is not a string")
+                        return
+                    end
 
                     local pet = PetLookup[selected]
                     if not pet then
@@ -130,12 +168,27 @@ function PetViewer.Init(Tabs, Core, UI)
                 end,
             })
         else
-            PetDropdown:Set({ Options = options })
+            -- Sirius Rayfield uses :Refresh for options, but :Set with table also works in many forks.
+            -- We'll use :Refresh if available, else fallback to :Set.
+            if typeof(PetDropdown.Refresh) == "function" then
+                PetDropdown:Refresh(options)
+            else
+                PetDropdown:Set({
+                    Options = options,
+                    CurrentOption = { options[1] or "None" },
+                })
+            end
         end
     end
 
+    --------------------------------------------------------
+    -- Initial load
+    --------------------------------------------------------
     RefreshPets()
 
+    --------------------------------------------------------
+    -- Equip Selected Pet button
+    --------------------------------------------------------
     tab:CreateButton({
         Name = "Equip Selected Pet",
         Callback = function()
@@ -144,6 +197,7 @@ function PetViewer.Init(Tabs, Core, UI)
                     Title = "Pet Details",
                     Content = "No pet selected.",
                 })
+                print("[DEBUG] No pet selected")
                 return
             end
 
@@ -160,6 +214,9 @@ function PetViewer.Init(Tabs, Core, UI)
         end,
     })
 
+    --------------------------------------------------------
+    -- Refresh button
+    --------------------------------------------------------
     tab:CreateButton({
         Name = "Refresh Pet List",
         Callback = RefreshPets,
