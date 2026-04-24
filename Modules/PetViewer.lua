@@ -282,46 +282,59 @@ function PetViewer.Init(Tabs, Core, UI)
         Name = "Get Currently Equipped Pet",
 
         Callback = function()
-            local equipped = API.GetEquippedPets()
-            local first = equipped and equipped[1]
+    local equipped = API.GetEquippedPets()
+    local uid = nil
 
-            if not first then
-                Details:Set({
-                    Title = "Pet Details",
-                    Content = "No pet equipped.",
-                })
-                return
-            end
+    -- Case 1: API returns { [1] = {id=...}, [2] = {...} }
+    if typeof(equipped) == "table" and equipped[1] and equipped[1].id then
+        uid = equipped[1].id
 
-            local uid = first.id
+    -- Case 2: API returns { primary = {id=...}, secondary = {...} }
+    elseif typeof(equipped) == "table" and equipped.primary and equipped.primary.id then
+        uid = equipped.primary.id
 
-            for display, pet in pairs(PetLookup) do
-                if pet.id == uid then
-                    PetDropdown:Set({ CurrentOption = { display } })
-                    PetViewer.SelectedPetId = uid
+    -- Case 3: API returns a single pet object
+    elseif typeof(equipped) == "table" and equipped.id then
+        uid = equipped.id
+    end
 
-                    Details:Set({
-                        Title = "Pet Details",
-                        Content = string.format(
-                            "Kind: %s\nAge: %s\nID: %s\nNeon: %s\nMega: %s",
-                            pet.kind,
-                            GetAgeName(pet.properties),
-                            pet.id,
-                            tostring(IsNeon(pet.properties)),
-                            tostring(IsMega(pet.properties))
-                        ),
-                    })
+    if not uid then
+        Details:Set({
+            Title = "Pet Details",
+            Content = "No equipped pet found.",
+        })
+        return
+    end
 
-                    return
-                end
-            end
+    -- Find matching dropdown entry
+    for display, pet in pairs(PetLookup) do
+        if pet.id == uid then
+            -- Select it in the dropdown
+            PetDropdown:Set({ CurrentOption = { display } })
+            PetViewer.SelectedPetId = uid
 
+            -- Update details panel
             Details:Set({
                 Title = "Pet Details",
-                Content = "Equipped pet not found in filtered list.",
+                Content = string.format(
+                    "Kind: %s\nAge: %s\nID: %s\nNeon: %s\nMega: %s",
+                    pet.kind,
+                    GetAgeName(pet.properties),
+                    pet.id,
+                    tostring(IsNeon(pet.properties)),
+                    tostring(IsMega(pet.properties))
+                ),
             })
-        end,
+
+            return
+        end
+    end
+
+    Details:Set({
+        Title = "Pet Details",
+        Content = "Equipped pet not found in filtered list.",
     })
+end
 
     --------------------------------------------------------
     -- INITIAL LOAD
