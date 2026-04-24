@@ -137,6 +137,7 @@ function PetViewer.Init(Tabs, Core, UI)
 
     local function LoadPets()
     local inv = API.GetPlayersInventory()
+    print("[PetViewer] inv =", inv, "inv.pets =", inv and inv.pets)
     if not inv or not inv.pets then
         PetListLabel:Set("No pets found.")
         return
