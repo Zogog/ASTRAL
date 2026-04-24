@@ -13,7 +13,7 @@ function Extras.Init(Tabs, Core, UI)
     tab:CreateSection("Player Movement")
 
     --------------------------------------------------------
-    -- WalkSpeed
+    -- WalkSpeed (patched to use Core.Movement)
     --------------------------------------------------------
     tab:CreateSlider({
         Name = "WalkSpeed",
@@ -23,14 +23,16 @@ function Extras.Init(Tabs, Core, UI)
         CurrentValue = 16,
 
         Callback = function(value)
-            local char = Core.LocalPlayer.Character or Core.LocalPlayer.CharacterAdded:Wait()
-            local hum = char:WaitForChild("Humanoid")
-            hum.WalkSpeed = value
+            if Core.Movement and Core.Movement.SetWalkSpeed then
+                Core.Movement.SetWalkSpeed(value)
+            else
+                warn("[ASTRAL] Movement.SetWalkSpeed missing")
+            end
         end,
     })
 
     --------------------------------------------------------
-    -- JumpPower
+    -- JumpPower (patched to use Core.Movement)
     --------------------------------------------------------
     tab:CreateSlider({
         Name = "JumpPower",
@@ -40,9 +42,11 @@ function Extras.Init(Tabs, Core, UI)
         CurrentValue = 50,
 
         Callback = function(value)
-            local char = Core.LocalPlayer.Character or Core.LocalPlayer.CharacterAdded:Wait()
-            local hum = char:WaitForChild("Humanoid")
-            hum.JumpPower = value
+            if Core.Movement and Core.Movement.SetJumpPower then
+                Core.Movement.SetJumpPower(value)
+            else
+                warn("[ASTRAL] Movement.SetJumpPower missing")
+            end
         end,
     })
 
