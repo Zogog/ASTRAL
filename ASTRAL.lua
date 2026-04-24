@@ -3,7 +3,6 @@
 --========================================================--
 warn("ASTRAL GITHUB VERSION LOADED")
 
-
 local REPO = "https://raw.githubusercontent.com/Zogog/ASTRAL/refs/heads/main/"
 
 local function import(path)
@@ -37,6 +36,11 @@ ASTRAL.UI.Tabs         = import("UI/Tabs.lua")
 ASTRAL.UI.Dropdowns    = import("UI/Dropdowns.lua")
 ASTRAL.UI.Settings     = import("UI/Settings.lua")
 
+-- Inject Core dependencies into UI modules
+if ASTRAL.UI.Dropdowns.SetDependencies then
+    ASTRAL.UI.Dropdowns.SetDependencies(ASTRAL.Core)
+end
+
 --========================================================--
 --                 FEATURE MODULES
 --========================================================--
@@ -56,6 +60,7 @@ ASTRAL.Modules.Webhooks    = import("Modules/Webhooks.lua")
 local Window = ASTRAL.UI.RayfieldInit.Init()
 local Tabs = ASTRAL.UI.Tabs.Create(Window)
 
+-- Only modules need Init()
 for _, folder in pairs({ASTRAL.Modules}) do
     for name, module in pairs(folder) do
         if type(module) == "table" and module.Init then
