@@ -1,37 +1,21 @@
 --========================================================--
 --                 ASTRAL.Modules.AutoEggs
---      Advanced v2 — Auto Hatch, Auto Switch, Teleports
 --========================================================--
-
-local Settings = require(script.Parent.Parent.UI.Settings)
-local Utils = require(script.Parent.Parent.Core.Utils)
 
 local AutoEggs = {}
-
---========================================================--
---                 INTERNAL STATE
---========================================================--
 
 local running = false
 local selectedEgg = nil
 local disabledEggTypes = {}
-local MovementMode = "Idle" -- Idle / Platform / Circle
-
---========================================================--
---                 LOGGING
---========================================================--
+local MovementMode = "Idle"
 
 local function Log(msg)
     print("[ASTRAL AutoEggs] " .. msg)
 end
 
-local function WaitTick()
+local function WaitTick(Settings)
     task.wait(Settings.GetTickDelay())
 end
-
---========================================================--
---                 MOVEMENT SYSTEM
---========================================================--
 
 local function DoMovement(mode)
     if mode == "Idle" then return end
@@ -44,16 +28,11 @@ local function DoMovement(mode)
 
     if mode == "Platform" then
         root.CFrame = root.CFrame + Vector3.new(0, 0.1, 0)
-
     elseif mode == "Circle" then
         local t = tick()
         root.CFrame = root.CFrame * CFrame.new(math.sin(t) * 0.5, 0, math.cos(t) * 0.5)
     end
 end
-
---========================================================--
---                 EGG SWITCHING
---========================================================--
 
 local function SwitchIfHatched(API, eggUnique)
     if not eggUnique then return nil end
@@ -74,7 +53,7 @@ local function SwitchIfHatched(API, eggUnique)
     return eggUnique
 end
 
-local function IsEggDisabled(API, eggUnique)
+local function IsEggDisabled(API, eggUnique, Utils)
     local cfg = API.GetPlayersPetConfigs(eggUnique)
     local kind = cfg.petKind:lower()
 
@@ -87,39 +66,17 @@ local function IsEggDisabled(API, eggUnique)
     return false
 end
 
---========================================================--
---                 TELEPORT LOGIC
---========================================================--
-
 local function TeleportForEgg(API, eggUnique)
     local cfg = API.GetPlayersPetConfigs(eggUnique)
     local kind = cfg.petKind:lower()
 
-    -- Basic routing for egg types
-    if kind:find("cracked") then
-        API.GoToStore("Nursery")
-        return
-    end
-
-    if kind:find("royal") then
-        API.GoToStore("Nursery")
-        return
-    end
-
-    if kind:find("pet") then
-        API.GoToStore("Nursery")
-        return
-    end
-
-    -- Default fallback
     API.GoToStore("Nursery")
 end
 
---========================================================--
---                 MAIN LOOP
---========================================================--
+local function StartLoop(API, Core, UI)
+    local Settings = UI.Settings
+    local Utils = Core.Utils
 
-local function StartLoop(API)
     running = true
     Log("AutoEggs Advanced v2 started")
 
@@ -134,14 +91,12 @@ local function StartLoop(API)
             continue
         end
 
-        -- Skip disabled egg types
-        if IsEggDisabled(API, selectedEgg) then
+        if IsEggDisabled(API, selectedEgg, Utils) then
             Log("Egg type disabled — skipping")
             task.wait(2)
             continue
         end
 
-        -- Auto-switch hatched eggs
         selectedEgg = SwitchIfHatched(API, selectedEgg)
         if not selectedEgg then
             Log("No eggs left — stopping")
@@ -149,7 +104,6 @@ local function StartLoop(API)
             break
         end
 
-        -- Ensure egg equipped
         local equipped = API.GetPlayersEquippedPets()
         local found = false
 
@@ -163,53 +117,47 @@ local function StartLoop(API)
         if not found then
             Log("Equipping egg: " .. selectedEgg)
             API.EquipPet(selectedEgg)
-            WaitTick()
+            WaitTick(Settings)
         end
 
-        -- Teleport to correct hatching area
         TeleportForEgg(API, selectedEgg)
-        WaitTick()
+        WaitTick(Settings)
     end
 
     Log("AutoEggs stopped")
 end
 
---========================================================--
---                 UI CREATION
---========================================================--
+function AutoEggs.Init(Tabs, Core, UI)
+    local API = Core.AdoptMeAPI
+    local Utils = Core.Utils
+    local Settings = UI.Settings
 
-function AutoEggs.Init(Tabs, API)
     local tab = Tabs.Autofarm
 
     tab:CreateSection("Auto Eggs — Advanced v2")
 
-    -- Enable toggle
     tab:CreateToggle({
         Name = "Enable Auto Eggs",
         CurrentValue = false,
         Callback = function(state)
             if state then
-                task.spawn(StartLoop, API)
+                task.spawn(StartLoop, API, Core, UI)
             else
                 running = false
             end
         end,
     })
 
-    -- Egg selection
     tab:CreateInput({
         Name = "Egg Unique ID",
         PlaceholderText = "Enter egg unique ID",
         RemoveTextAfterFocusLost = false,
         Callback = function(text)
             selectedEgg = text ~= "" and text or nil
-            if selectedEgg then
-                Log("Selected egg: " .. selectedEgg)
-            end
+            if selectedEgg then Log("Selected egg: " .. selectedEgg) end
         end,
     })
 
-    -- Disabled egg types
     tab:CreateInput({
         Name = "Disabled Egg Types (comma separated)",
         PlaceholderText = "cracked,royal,pet",
@@ -223,7 +171,6 @@ function AutoEggs.Init(Tabs, API)
         end,
     })
 
-    -- Movement mode
     tab:CreateDropdown({
         Name = "Movement Mode",
         Options = {"Idle", "Platform", "Circle"},
@@ -233,7 +180,6 @@ function AutoEggs.Init(Tabs, API)
         end,
     })
 
-    -- Stop button
     tab:CreateButton({
         Name = "Force Stop Auto Eggs",
         Callback = function()
