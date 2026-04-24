@@ -1,6 +1,6 @@
 --========================================================--
 --                 ASTRAL.Modules.PetViewer
---        Sirius Rayfield compatible Pet Viewer
+--        Final Sirius Rayfield Compatible Version
 --========================================================--
 
 local PetViewer = {}
@@ -68,10 +68,6 @@ local function BuildPetTable(API)
         end
     end
 
-    table.sort(pets, function(a, b)
-        return a.kind:lower() < b.kind:lower()
-    end)
-
     return pets
 end
 
@@ -89,6 +85,7 @@ function PetViewer.Init(Tabs, Core, UI)
 
     local PetDropdown = nil
     local PetLookup = {}
+    local FullPetList = {}
 
     PetViewer.SelectedPetId = nil
 
@@ -98,32 +95,94 @@ function PetViewer.Init(Tabs, Core, UI)
     })
 
     --------------------------------------------------------
-    -- Refresh pet list and rebuild dropdown options
+    -- FILTERS
     --------------------------------------------------------
-    local function RefreshPets()
-        local pets = BuildPetTable(API)
+    local CurrentSearch = ""
+    local SortMode = "Alphabetical"
+    local NeonOnly = false
 
-        PetCountLabel:Set("You have " .. #pets .. " pets")
+    --------------------------------------------------------
+    -- SORTING FUNCTION
+    --------------------------------------------------------
+    local function SortPets(list)
+        if SortMode == "Alphabetical" then
+            table.sort(list, function(a, b)
+                return a.kind:lower() < b.kind:lower()
+            end)
+
+        elseif SortMode == "Age (Young → Old)" then
+            table.sort(list, function(a, b)
+                return (a.properties.age or 0) < (b.properties.age or 0)
+            end)
+
+        elseif SortMode == "Age (Old → Young)" then
+            table.sort(list, function(a, b)
+                return (a.properties.age or 0) > (b.properties.age or 0)
+            end)
+
+        elseif SortMode == "Neon/Mega First" then
+            table.sort(list, function(a, b)
+                local A = (IsMega(a.properties) and 2) or (IsNeon(a.properties) and 1) or 0
+                local B = (IsMega(b.properties) and 2) or (IsNeon(b.properties) and 1) or 0
+                if A == B then
+                    return a.kind:lower() < b.kind:lower()
+                end
+                return A > B
+            end)
+        end
+
+        return list
+    end
+
+    --------------------------------------------------------
+    -- APPLY FILTERS + BUILD OPTIONS
+    --------------------------------------------------------
+    local function BuildOptions()
+        local filtered = {}
+
+        for _, pet in ipairs(FullPetList) do
+            local props = pet.properties
+
+            if NeonOnly and not (IsNeon(props) or IsMega(props)) then
+                continue
+            end
+
+            if CurrentSearch ~= "" and not pet.kind:lower():find(CurrentSearch) then
+                continue
+            end
+
+            table.insert(filtered, pet)
+        end
+
+        filtered = SortPets(filtered)
 
         local options = {}
         PetLookup = {}
 
-        for _, pet in ipairs(pets) do
+        for _, pet in ipairs(filtered) do
             local props = pet.properties
             local emoji = GetPetEmoji(props)
             local ageName = GetAgeName(props)
 
-            -- Display string used as key
             local display = string.format("%s%s (%s) — %s", emoji, pet.kind, ageName, pet.id)
 
             table.insert(options, display)
             PetLookup[display] = pet
         end
 
+        return options
+    end
+
+    --------------------------------------------------------
+    -- REFRESH PET LIST
+    --------------------------------------------------------
+    local function RefreshPets()
+        FullPetList = BuildPetTable(API)
+        PetCountLabel:Set("You have " .. #FullPetList .. " pets")
+
+        local options = BuildOptions()
+
         if not PetDropdown then
-            ------------------------------------------------
-            -- Sirius Rayfield dropdown
-            ------------------------------------------------
             PetDropdown = tab:CreateDropdown({
                 Name = "Select a Pet",
                 Options = options,
@@ -131,21 +190,12 @@ function PetViewer.Init(Tabs, Core, UI)
                 MultipleOptions = false,
 
                 Callback = function(_)
-                    -- In Sirius Rayfield, the real value is in CurrentOption[1]
                     local selected = PetDropdown.CurrentOption and PetDropdown.CurrentOption[1]
 
-                    print("[DEBUG] Selected option:", selected, typeof(selected))
-
-                    if typeof(selected) ~= "string" then
-                        warn("[DEBUG] ERROR: Selected option is not a string")
-                        return
-                    end
+                    if typeof(selected) ~= "string" then return end
 
                     local pet = PetLookup[selected]
-                    if not pet then
-                        warn("[DEBUG] ERROR: Pet not found for key:", selected)
-                        return
-                    end
+                    if not pet then return end
 
                     PetViewer.SelectedPetId = pet.id
 
@@ -168,8 +218,6 @@ function PetViewer.Init(Tabs, Core, UI)
                 end,
             })
         else
-            -- Sirius Rayfield uses :Refresh for options, but :Set with table also works in many forks.
-            -- We'll use :Refresh if available, else fallback to :Set.
             if typeof(PetDropdown.Refresh) == "function" then
                 PetDropdown:Refresh(options)
             else
@@ -182,17 +230,103 @@ function PetViewer.Init(Tabs, Core, UI)
     end
 
     --------------------------------------------------------
-    -- Initial load
+    -- SEARCH BAR
     --------------------------------------------------------
-    RefreshPets()
-    
+    tab:CreateInput({
+        Name = "Search Pets",
+        PlaceholderText = "Type a pet name...",
+        RemoveTextAfterFocusLost = false,
+
+        Callback = function(text)
+            CurrentSearch = text:lower()
+            RefreshPets()
+        end,
+    })
+
     --------------------------------------------------------
-    -- Refresh button
+    -- SORTING DROPDOWN
+    --------------------------------------------------------
+    tab:CreateDropdown({
+        Name = "Sort By",
+        Options = {
+            "Alphabetical",
+            "Age (Young → Old)",
+            "Age (Old → Young)",
+            "Neon/Mega First",
+        },
+        CurrentOption = { "Alphabetical" },
+
+        Callback = function(opt)
+            SortMode = opt[1]
+            RefreshPets()
+        end,
+    })
+
+    --------------------------------------------------------
+    -- NEON/MEGA FILTER
+    --------------------------------------------------------
+    tab:CreateToggle({
+        Name = "Show Only Neon/Mega",
+        CurrentValue = false,
+
+        Callback = function(state)
+            NeonOnly = state
+            RefreshPets()
+        end,
+    })
+
+    --------------------------------------------------------
+    -- GET CURRENTLY EQUIPPED PET
     --------------------------------------------------------
     tab:CreateButton({
-        Name = "Refresh Pet List",
-        Callback = RefreshPets,
+        Name = "Get Currently Equipped Pet",
+
+        Callback = function()
+            local equipped = API.GetEquippedPets()
+            local first = equipped and equipped[1]
+
+            if not first then
+                Details:Set({
+                    Title = "Pet Details",
+                    Content = "No pet equipped.",
+                })
+                return
+            end
+
+            local uid = first.id
+
+            for display, pet in pairs(PetLookup) do
+                if pet.id == uid then
+                    PetDropdown:Set({ CurrentOption = { display } })
+                    PetViewer.SelectedPetId = uid
+
+                    Details:Set({
+                        Title = "Pet Details",
+                        Content = string.format(
+                            "Kind: %s\nAge: %s\nID: %s\nNeon: %s\nMega: %s",
+                            pet.kind,
+                            GetAgeName(pet.properties),
+                            pet.id,
+                            tostring(IsNeon(pet.properties)),
+                            tostring(IsMega(pet.properties))
+                        ),
+                    })
+
+                    return
+                end
+            end
+
+            Details:Set({
+                Title = "Pet Details",
+                Content = "Equipped pet not found in filtered list.",
+            })
+        end,
     })
+
+    --------------------------------------------------------
+    -- INITIAL LOAD
+    --------------------------------------------------------
+    RefreshPets()
 end
 
 return PetViewer
