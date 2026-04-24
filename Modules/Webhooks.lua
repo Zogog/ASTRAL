@@ -27,7 +27,7 @@ local function SendPayload(url, data)
 end
 
 local function BuildStatusPayload(API)
-    local inv = API.GetPlayersInventory()
+    local inv   = API.GetPlayersInventory()
     local money = API.GetPlayerMoney()
 
     return {
@@ -35,7 +35,7 @@ local function BuildStatusPayload(API)
         content = string.format(
             "Balance: %d\nPets: %d\nItems: %d",
             money or 0,
-            inv.pets and #inv.pets or 0,
+            inv.pets  and #inv.pets  or 0,
             inv.items and #inv.items or 0
         ),
     }
@@ -43,7 +43,7 @@ end
 
 local function StartLoop(API)
     running = true
-    Log("Webhooks loop started")
+    Log("Webhook loop started")
 
     while running do
         task.wait(Interval)
@@ -57,13 +57,14 @@ local function StartLoop(API)
         SendPayload(WebhookURL, payload)
     end
 
-    Log("Webhooks loop stopped")
+    Log("Webhook loop stopped")
 end
 
 function Webhooks.Init(Tabs, Core, UI)
     local API = Core.AdoptMeAPI
 
-    local tab = Tabs.Utility or Tabs.Main or Tabs.Autofarm
+    -- Use Misc tab (your Tabs.lua defines it)
+    local tab = Tabs.Misc
 
     tab:CreateSection("Webhooks")
 
@@ -81,7 +82,7 @@ function Webhooks.Init(Tabs, Core, UI)
         Name = "Interval (seconds)",
         Range = {10, 300},
         Increment = 10,
-        CurrentValue = 60,
+        CurrentValue = Interval,
         Callback = function(value)
             Interval = value
             Log("Interval set to " .. value .. "s")
@@ -110,12 +111,10 @@ function Webhooks.Init(Tabs, Core, UI)
                 return
             end
 
-            local payload = {
+            SendPayload(WebhookURL, {
                 username = "ASTRAL Hub",
-                content = "Test webhook from ASTRAL.",
-            }
-
-            SendPayload(WebhookURL, payload)
+                content  = "Test webhook from ASTRAL.",
+            })
         end,
     })
 end
