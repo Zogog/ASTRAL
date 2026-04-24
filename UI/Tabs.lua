@@ -10,8 +10,7 @@ function Tabs.Create(Window)
     local TabList = {
         Main      = Window:CreateTab("Main", "home"),
         Pets      = Window:CreateTab("Pets", "paw-print"),
-        Extras    
-        = Window:CreateTab("Extras", "settings"),
+        Extras    = Window:CreateTab("Extras", "settings"),
 
     }
 
