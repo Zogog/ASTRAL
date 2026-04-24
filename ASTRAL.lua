@@ -62,9 +62,10 @@ ASTRAL.UI.Window = Rayfield:CreateWindow({
 
 local Tabs = {}
 Tabs.Main       = ASTRAL.UI.Window:CreateTab("Main", "home")
-Tabs.Autofarm   = ASTRAL.UI.Window:CreateTab("Autofarm", "zap")
-Tabs.Teleports  = ASTRAL.UI.Window:CreateTab("Teleports", "map")
+--Tabs.Autofarm   = ASTRAL.UI.Window:CreateTab("Autofarm", "zap")
+--Tabs.Teleports  = ASTRAL.UI.Window:CreateTab("Teleports", "map")
 Tabs.Pets       = ASTRAL.UI.Window:CreateTab("Pets", "paw-print") -- PetViewer tab
+Tabs.Extras     = ASTRAL.UI.Window:CreateTab("Extras", "settings")
 
 ASTRAL.Tabs = Tabs
 
