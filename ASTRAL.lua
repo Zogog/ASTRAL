@@ -73,6 +73,7 @@ ASTRAL.Tabs = Tabs
 
 ASTRAL.Modules.Main        = safeImport("Modules/Main.lua")
 ASTRAL.Modules.AutoNeeds   = safeImport("Modules/AutoNeeds.lua")
+ASTRAL.Modules.PetViewer = safeImport("Modules/PetViewer.lua")
 ASTRAL.Modules.TeleportHub = safeImport("Modules/TeleportHub.lua")
 
 -- BabyFarm removed
@@ -99,6 +100,7 @@ end
 
 initModule("Main",        ASTRAL.Modules.Main)
 initModule("AutoNeeds",   ASTRAL.Modules.AutoNeeds)
+initModule("PetViewer", ASTRAL.Modules.PetViewer)
 initModule("TeleportHub", ASTRAL.Modules.TeleportHub)
 
 --========================================================--
