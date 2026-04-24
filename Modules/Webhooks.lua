@@ -1,182 +1,121 @@
 --========================================================--
 --                 ASTRAL.Modules.Webhooks
---      Advanced v2 — Discord Notifications System
 --========================================================--
+
+local HttpService = game:GetService("HttpService")
 
 local Webhooks = {}
 
---========================================================--
---                 INTERNAL STATE
---========================================================--
-
-local webhookURL = nil
-local username = "ASTRAL Hub"
-local avatarURL = "https://i.imgur.com/0ZfQZpF.png" -- optional icon
-
-local lastSent = 0
-local rateLimit = 1 -- seconds between messages
-
---========================================================--
---                 LOGGING
---========================================================--
+local running = false
+local WebhookURL = nil
+local Interval = 60
 
 local function Log(msg)
     print("[ASTRAL Webhooks] " .. msg)
 end
 
---========================================================--
---                 SEND RAW WEBHOOK
---========================================================--
+local function SendPayload(url, data)
+    local json = HttpService:JSONEncode(data)
 
-local function SendRaw(payload)
-    if not webhookURL or webhookURL == "" then
-        return
-    end
-
-    -- Rate limit protection
-    if tick() - lastSent < rateLimit then
-        return
-    end
-    lastSent = tick()
-
-    local json = game:GetService("HttpService"):JSONEncode(payload)
-
-    local success, err = pcall(function()
-        request({
-            Url = webhookURL,
-            Method = "POST",
-            Headers = { ["Content-Type"] = "application/json" },
-            Body = json
-        })
+    local ok, err = pcall(function()
+        HttpService:PostAsync(url, json, Enum.HttpContentType.ApplicationJson)
     end)
 
-    if not success then
-        warn("[ASTRAL Webhooks] Failed to send webhook:", err)
+    if not ok then
+        Log("Failed to send webhook: " .. tostring(err))
     end
 end
 
---========================================================--
---                 PUBLIC SEND FUNCTIONS
---========================================================--
+local function BuildStatusPayload(API)
+    local inv = API.GetPlayersInventory()
+    local money = API.GetPlayerMoney()
 
-function Webhooks.SendMessage(text)
-    if not webhookURL then return end
-
-    SendRaw({
-        username = username,
-        avatar_url = avatarURL,
-        content = text
-    })
+    return {
+        username = "ASTRAL Hub",
+        content = string.format(
+            "Balance: %d\nPets: %d\nItems: %d",
+            money or 0,
+            inv.pets and #inv.pets or 0,
+            inv.items and #inv.items or 0
+        ),
+    }
 end
 
-function Webhooks.SendEmbed(title, description, color)
-    if not webhookURL then return end
+local function StartLoop(API)
+    running = true
+    Log("Webhooks loop started")
 
-    SendRaw({
-        username = username,
-        avatar_url = avatarURL,
-        embeds = {{
-            title = title,
-            description = description,
-            color = color or 0x00FFFF,
-            timestamp = DateTime.now():ToIsoDate()
-        }}
-    })
+    while running do
+        task.wait(Interval)
+
+        if not WebhookURL or WebhookURL == "" then
+            Log("No webhook URL set")
+            continue
+        end
+
+        local payload = BuildStatusPayload(API)
+        SendPayload(WebhookURL, payload)
+    end
+
+    Log("Webhooks loop stopped")
 end
 
---========================================================--
---                 PREBUILT EVENT HELPERS
---========================================================--
+function Webhooks.Init(Tabs, Core, UI)
+    local API = Core.AdoptMeAPI
 
-function Webhooks.PetFullyGrown(petName, petId)
-    Webhooks.SendEmbed(
-        "🎉 Pet Fully Grown!",
-        string.format("**Pet:** %s\n**ID:** %s", petName, petId),
-        0x00FF00
-    )
-end
-
-function Webhooks.EggHatched(eggName, newPetName)
-    Webhooks.SendEmbed(
-        "🥚 Egg Hatched!",
-        string.format("**Egg:** %s\n**New Pet:** %s", eggName, newPetName),
-        0xFFD700
-    )
-end
-
-function Webhooks.AilmentSolved(petName, ailment)
-    Webhooks.SendEmbed(
-        "✨ Ailment Solved",
-        string.format("**Pet:** %s\n**Ailment:** %s", petName, ailment),
-        0x87CEEB
-    )
-end
-
-function Webhooks.BabyAilmentSolved(ailment)
-    Webhooks.SendEmbed(
-        "👶 Baby Ailment Solved",
-        string.format("**Ailment:** %s", ailment),
-        0xFF69B4
-    )
-end
-
-function Webhooks.AutoNeedsEvent(text)
-    Webhooks.SendEmbed("⚙️ AutoNeeds Event", text, 0xCCCCFF)
-end
-
-function Webhooks.AutoEggsEvent(text)
-    Webhooks.SendEmbed("🥚 AutoEggs Event", text, 0xFFAA00)
-end
-
-function Webhooks.BabyFarmEvent(text)
-    Webhooks.SendEmbed("👶 BabyFarm Event", text, 0xFF77AA)
-end
-
---========================================================--
---                 UI INITIALIZATION
---========================================================--
-
-function Webhooks.Init(Tabs)
-    local tab = Tabs.Misc
+    local tab = Tabs.Utility or Tabs.Main or Tabs.Autofarm
 
     tab:CreateSection("Webhooks")
 
-    -- Webhook URL input
     tab:CreateInput({
-        Name = "Discord Webhook URL",
-        PlaceholderText = "Paste your webhook URL here",
+        Name = "Webhook URL",
+        PlaceholderText = "Enter Discord webhook URL",
         RemoveTextAfterFocusLost = false,
         Callback = function(text)
-            webhookURL = text ~= "" and text or nil
+            WebhookURL = text
             Log("Webhook URL updated")
         end,
     })
 
-    -- Username
-    tab:CreateInput({
-        Name = "Webhook Username",
-        PlaceholderText = "ASTRAL Hub",
-        RemoveTextAfterFocusLost = false,
-        Callback = function(text)
-            username = text ~= "" and text or "ASTRAL Hub"
+    tab:CreateSlider({
+        Name = "Interval (seconds)",
+        Range = {10, 300},
+        Increment = 10,
+        CurrentValue = 60,
+        Callback = function(value)
+            Interval = value
+            Log("Interval set to " .. value .. "s")
         end,
     })
 
-    -- Avatar URL
-    tab:CreateInput({
-        Name = "Webhook Avatar URL",
-        PlaceholderText = "Optional image URL",
-        RemoveTextAfterFocusLost = false,
-        Callback = function(text)
-            avatarURL = text ~= "" and text or avatarURL
+    tab:CreateToggle({
+        Name = "Enable Webhook Loop",
+        CurrentValue = false,
+        Callback = function(state)
+            if state then
+                if not running then
+                    task.spawn(StartLoop, API)
+                end
+            else
+                running = false
+            end
         end,
     })
 
-    -- Test button
     tab:CreateButton({
         Name = "Send Test Webhook",
         Callback = function()
-            Webhooks.SendEmbed("ASTRAL Webhook Test", "Webhook is working!")
+            if not WebhookURL or WebhookURL == "" then
+                Log("No webhook URL set")
+                return
+            end
+
+            local payload = {
+                username = "ASTRAL Hub",
+                content = "Test webhook from ASTRAL.",
+            }
+
+            SendPayload(WebhookURL, payload)
         end,
     })
 end
