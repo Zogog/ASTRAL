@@ -1,6 +1,6 @@
 --========================================================--
 --                 ASTRAL.Modules.PetViewer
---        Final Sirius Rayfield Compatible Version
+--        Sirius Rayfield Compatible + Debug Version
 --========================================================--
 
 local PetViewer = {}
@@ -216,6 +216,16 @@ function PetViewer.Init(Tabs, Core, UI)
                     })
                 end,
             })
+
+            --------------------------------------------------------
+            -- ⭐ DEBUG: PRINT ALL METHODS ON THE DROPDOWN OBJECT
+            --------------------------------------------------------
+            print("\n[DEBUG] Dropdown methods:")
+            for k, v in pairs(PetDropdown) do
+                print("   ", k, typeof(v))
+            end
+            print("[DEBUG] End of dropdown method list\n")
+
         else
             if typeof(PetDropdown.Refresh) == "function" then
                 PetDropdown:Refresh(options)
@@ -284,7 +294,6 @@ function PetViewer.Init(Tabs, Core, UI)
             local equipped = API.GetEquippedPets()
             local uid = nil
 
-            -- Try all known formats
             if typeof(equipped) == "table" then
                 if equipped[1] and equipped[1].id then
                     uid = equipped[1].id
@@ -305,8 +314,10 @@ function PetViewer.Init(Tabs, Core, UI)
 
             for display, pet in pairs(PetLookup) do
                 if pet.id == uid then
-                    PetDropdown:Set({ CurrentOption = { display } })
                     PetViewer.SelectedPetId = uid
+
+                    -- This is the line we will fix once we see the debug output
+                    PetDropdown:Set({ CurrentOption = { display } })
 
                     Details:Set({
                         Title = "Pet Details",
