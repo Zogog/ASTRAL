@@ -1,12 +1,8 @@
 --========================================================--
---                 ASTRAL.Modules.PetViewer
+--                 ASTRAL.Modules.PetViewer (DEBUG)
 --========================================================--
 
 local PetViewer = {}
-
---========================================================--
--- AGE TABLES
---========================================================--
 
 local NORMAL_AGES = {
     [1] = "Newborn",
@@ -26,10 +22,6 @@ local NEON_AGES = {
     [6] = "Luminous",
 }
 
---========================================================--
--- PROPERTY HELPERS
---========================================================--
-
 local function IsNeon(props)
     return props.is_neon or props.neon
 end
@@ -40,39 +32,26 @@ end
 
 local function GetAgeName(props)
     local age = props.age or 1
-
-    if IsMega(props) or IsNeon(props) then
-        return NEON_AGES[age] or "Unknown"
-    else
-        return NORMAL_AGES[age] or "Unknown"
-    end
+    return (IsMega(props) or IsNeon(props)) and NEON_AGES[age] or NORMAL_AGES[age]
 end
 
 local function GetPetEmoji(props)
-    if IsMega(props) then
-        return "🌈 "
-    elseif IsNeon(props) then
-        return "✨ "
-    end
+    if IsMega(props) then return "🌈 " end
+    if IsNeon(props) then return "✨ " end
     return ""
 end
-
---========================================================--
--- BUILD PET TABLE
---========================================================--
 
 local function BuildPetTable(API)
     local inv = API.GetPlayersInventory().pets
     local pets = {}
 
     for uid, data in pairs(inv) do
-        if data.kind ~= "practice_dog" then
-            table.insert(pets, {
-                id = uid,               -- unique pet instance ID
-                kind = data.kind,       -- ⭐ correct pet type
-                properties = data.properties,
-            })
-        end
+        print("[DEBUG] Found pet:", uid, data.kind)
+        table.insert(pets, {
+            id = uid,
+            kind = data.kind,
+            properties = data.properties,
+        })
     end
 
     table.sort(pets, function(a, b)
@@ -82,15 +61,11 @@ local function BuildPetTable(API)
     return pets
 end
 
---========================================================--
--- INIT
---========================================================--
-
 function PetViewer.Init(Tabs, Core, UI)
     local API = Core.AdoptMeAPI
     local tab = Tabs.Pets
 
-    tab:CreateSection("Pet Viewer")
+    tab:CreateSection("Pet Viewer (DEBUG MODE)")
 
     local PetCountLabel = tab:CreateLabel("Loading pets...")
 
@@ -104,22 +79,28 @@ function PetViewer.Init(Tabs, Core, UI)
         Content = "Select a pet from the dropdown.",
     })
 
-    ------------------------------------------------------------
-    -- Refresh function
-    ------------------------------------------------------------
+    local function DebugEquip(uid)
+        print("\n================ EQUIP DEBUG ================")
+        print("Attempting to equip UID:", uid)
+
+        print("Checking RouterClient route exists...")
+        local RouterClient = require(game.ReplicatedStorage.ClientModules.Core.RouterClient.RouterClient)
+        local route = RouterClient.get("ToolAPI/Equip")
+        print("Route:", route)
+
+        print("Calling API.EquipPet...")
+        local ok, err = pcall(function()
+            API.EquipPet(uid)
+        end)
+
+        print("EquipPet pcall result:", ok, err)
+        print("=============================================\n")
+
+        return ok, err
+    end
+
     local function RefreshPets()
         local pets = BuildPetTable(API)
-
-        if #pets == 0 then
-            PetCountLabel:Set("You have no pets.")
-            if PetDropdown then PetDropdown:Set({ Options = {} }) end
-            PetViewer.SelectedPetId = nil
-            Details:Set({
-                Title = "Pet Details",
-                Content = "No pets found.",
-            })
-            return
-        end
 
         PetCountLabel:Set("You have " .. #pets .. " pets")
 
@@ -131,7 +112,6 @@ function PetViewer.Init(Tabs, Core, UI)
             local emoji = GetPetEmoji(props)
             local ageName = GetAgeName(props)
 
-            -- ⭐ UID added to dropdown entry
             local display = string.format("%s%s (%s) — %s", emoji, pet.kind, ageName, pet.id)
 
             table.insert(options, display)
@@ -143,20 +123,23 @@ function PetViewer.Init(Tabs, Core, UI)
                 Name = "Select a Pet",
                 Options = options,
                 Callback = function(selected)
-                    local pet = PetLookup[selected]
-                    if not pet then return end
+                    print("\n[DEBUG] Dropdown selected:", selected)
 
+                    local pet = PetLookup[selected]
+                    if not pet then
+                        print("[DEBUG] ERROR: Pet not found in lookup table")
+                        return
+                    end
+
+                    print("[DEBUG] Selected UID:", pet.id)
                     PetViewer.SelectedPetId = pet.id
 
-                    -- Try to equip immediately
-                    local ok, err = pcall(function()
-                        API.EquipPet(pet.id)
-                    end)
+                    local ok, err = DebugEquip(pet.id)
 
                     Details:Set({
                         Title = "Pet Details",
                         Content = string.format(
-                            "Kind: %s\nAge: %s\nID: %s\nNeon: %s\nMega: %s\n\nEquip: %s",
+                            "Kind: %s\nAge: %s\nID: %s\nNeon: %s\nMega: %s\n\nEquip Result: %s",
                             pet.kind,
                             GetAgeName(pet.properties),
                             pet.id,
@@ -172,41 +155,20 @@ function PetViewer.Init(Tabs, Core, UI)
         end
     end
 
-    ------------------------------------------------------------
-    -- Initial load
-    ------------------------------------------------------------
     RefreshPets()
 
-    ------------------------------------------------------------
-    -- Equip Selected Pet button (fallback)
-    ------------------------------------------------------------
     tab:CreateButton({
-        Name = "Equip Selected Pet",
+        Name = "Equip Selected Pet (DEBUG)",
         Callback = function()
             if not PetViewer.SelectedPetId then
-                Details:Set({
-                    Title = "Pet Details",
-                    Content = "No pet selected.",
-                })
+                print("[DEBUG] No pet selected")
                 return
             end
 
-            local ok, err = pcall(function()
-                API.EquipPet(PetViewer.SelectedPetId)
-            end)
-
-            Details:Set({
-                Title = "Pet Details",
-                Content = ok and
-                    ("Equipped pet ID: " .. PetViewer.SelectedPetId) or
-                    ("Failed to equip: " .. tostring(err)),
-            })
+            DebugEquip(PetViewer.SelectedPetId)
         end,
     })
 
-    ------------------------------------------------------------
-    -- Refresh button
-    ------------------------------------------------------------
     tab:CreateButton({
         Name = "Refresh Pet List",
         Callback = RefreshPets,
