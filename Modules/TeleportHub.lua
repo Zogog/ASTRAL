@@ -1,98 +1,62 @@
 --========================================================--
---               ASTRAL.Modules.TeleportHub
---        Clean, modular teleport hub for Adopt Me
+--                 ASTRAL.Modules.TeleportHub
 --========================================================--
 
 local TeleportHub = {}
 
---========================================================--
---               TELEPORT DEFINITIONS
---========================================================--
+function TeleportHub.Init(Tabs, Core, UI)
+    local API = Core.AdoptMeAPI
+    local Teleport = Core.Teleport
 
-local Teleports = {
-    ["Main Areas"] = {
-        { Name = "Main Map",      Func = "GoToMainMap" },
-        { Name = "Neighborhood",  Func = "GoToNeighborhood" },
-        { Name = "Your House",    Func = "GoToHome" },
-    },
-
-    ["Shops & Buildings"] = {
-        -- These require you to know the interior name
-        -- You can expand this list as you discover more
-        { Name = "Nursery",       Store = "Nursery" },
-        { Name = "School",        Store = "School" },
-        { Name = "Hospital",      Store = "Hospital" },
-        { Name = "Pizza Shop",    Store = "PizzaShop" },
-        { Name = "Salon",         Store = "Salon" },
-        { Name = "Baby Shop",     Store = "BabyShop" },
-        { Name = "Toy Shop",      Store = "ToyShop" },
-    },
-
-    ["Housing"] = {
-        { Name = "Your House",    Func = "GoToHome" },
-    }
-}
-
---========================================================--
---               INTERNAL TELEPORT WRAPPER
---========================================================--
-
-local function TeleportTo(API, entry)
-    if entry.Func then
-        -- Direct API teleport (MainMap, Neighborhood, Home)
-        local fn = API[entry.Func]
-        if fn then
-            fn()
-        else
-            warn("Teleport function missing:", entry.Func)
-        end
-
-    elseif entry.Store then
-        -- Store teleport (Nursery, School, etc.)
-        API.GoToStore(entry.Store)
-
-    else
-        warn("Invalid teleport entry:", entry.Name)
-    end
-end
-
---========================================================--
---               UI CREATION
---========================================================--
-
-function TeleportHub.Init(Tabs, API)
-    local tab = Tabs.Teleports
+    local tab = Tabs.Teleports or Tabs.Utility or Tabs.Main
 
     tab:CreateSection("Teleport Hub")
 
-    -- Info label
-    tab:CreateLabel("Select a location to teleport instantly.", "map")
+    local routes = {
+        "Home",
+        "MainMap",
+        "Neighborhood",
+        "Nursery",
+        "School",
+        "Hospital",
+        "Salon",
+        "PizzaShop",
+        "BabyShop",
+        "ToyShop",
+        "SkyCastle",
+    }
 
-    -- Loop through categories
-    for category, list in pairs(Teleports) do
-        tab:CreateSection(category)
-
-        for _, entry in ipairs(list) do
-            tab:CreateButton({
-                Name = entry.Name,
-                Callback = function()
-                    TeleportTo(API, entry)
-                end,
-            })
-        end
-    end
-
-    --========================================================--
-    --               REFRESH BUTTON (Future-proof)
-    --========================================================--
-
-    tab:CreateDivider()
+    tab:CreateDropdown({
+        Name = "Quick Teleport",
+        Options = routes,
+        CurrentOption = "Home",
+        Callback = function(choice)
+            if Teleport.Exists(choice) then
+                Teleport.Execute(API, choice)
+            else
+                warn("[ASTRAL TeleportHub] Unknown route:", choice)
+            end
+        end,
+    })
 
     tab:CreateButton({
-        Name = "Refresh Teleport List",
+        Name = "Go Home",
         Callback = function()
-            -- In the future, this can auto-detect new interiors
-            print("Teleport list refreshed.")
+            Teleport.GoHome(API)
+        end,
+    })
+
+    tab:CreateButton({
+        Name = "Go to Main Map",
+        Callback = function()
+            Teleport.GoMain(API)
+        end,
+    })
+
+    tab:CreateButton({
+        Name = "Go to Neighborhood",
+        Callback = function()
+            Teleport.GoNeighborhood(API)
         end,
     })
 end
