@@ -153,5 +153,10 @@ end
 
 
 print("ASTRAL Framework Loaded Successfully (SafeMode Edition)")
+print("Loaded Core Modules:")
+for name, module in pairs(ASTRAL.Core) do
+    print(" -", name, module)
+end
+
 
 return ASTRAL
