@@ -1,6 +1,6 @@
 --========================================================--
 --                 ASTRAL.Modules.PetViewer
---        TBIGUI-Style UID Dropdown (Final Version)
+--     Fully Patched – TBIGUI Style – Full UID – Stable
 --========================================================--
 
 local PetViewer = {}
@@ -56,15 +56,20 @@ function PetViewer.Init(Tabs, Core, UI)
 
     local Dropdown = tab:CreateDropdown({
         Name = "Select Pet",
-        Options = {},
+        Options = { "None" },
         CurrentOption = { "None" },
         MultipleOptions = false,
 
         Callback = function(option)
             -- Rayfield sometimes returns { "string" }
             if type(option) == "table" then
+                -- If Rayfield passed a Rayfield object instead of a string
+                if option.Set ~= nil then
+                    return -- corrupted callback, ignore
+                end
                 option = option[1]
             end
+
             if not option or option == "None" then return end
 
             -- Extract FULL UID from TBIGUI-style string
@@ -138,7 +143,7 @@ function PetViewer.Init(Tabs, Core, UI)
     })
 
     --------------------------------------------------------
-    -- Load Pets (simple + stable)
+    -- Load Pets
     --------------------------------------------------------
 
     local function LoadPets()
@@ -222,6 +227,11 @@ function PetViewer.Init(Tabs, Core, UI)
             )
 
             table.insert(display, label)
+        end
+
+        -- Prevent Rayfield corruption
+        if #display == 0 then
+            display = { "None" }
         end
 
         Dropdown:Refresh(display)
