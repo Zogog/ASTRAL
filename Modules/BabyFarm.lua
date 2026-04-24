@@ -81,4 +81,56 @@ local function StartLoop(API, Core, UI)
     Log("BabyFarm stopped")
 end
 
-function BabyFarm.Init(Tabs,
+--========================================================--
+--                 UI INITIALIZATION
+--========================================================--
+
+function BabyFarm.Init(Tabs, Core, UI)
+    local API = Core.AdoptMeAPI
+    local Settings = UI.Settings
+
+    local tab = Tabs:CreateTab("Baby Farm")
+
+    tab:CreateToggle({
+        Name = "Enable Baby Farm",
+        CurrentValue = false,
+        Callback = function(state)
+            if state then
+                if not running then
+                    task.spawn(StartLoop, API, Core, UI)
+                end
+            else
+                running = false
+            end
+        end
+    })
+
+    tab:CreateDropdown({
+        Name = "Movement Mode",
+        Options = { "Idle", "Platform", "Circle" },
+        CurrentOption = "Idle",
+        Callback = function(option)
+            MovementMode = option
+        end
+    })
+
+    tab:CreateDropdown({
+        Name = "Disabled Ailments",
+        Options = { "hungry", "thirsty", "sleepy", "dirty", "school", "hospital", "salon" },
+        MultipleOptions = true,
+        CurrentOption = {},
+        Callback = function(list)
+            DisabledAilments = list
+        end
+    })
+
+    tab:CreateButton({
+        Name = "Force Stop",
+        Callback = function()
+            running = false
+            Log("Force stop triggered")
+        end
+    })
+end
+
+return BabyFarm
