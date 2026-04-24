@@ -1,6 +1,6 @@
 --========================================================--
 --                 ASTRAL.Modules.PetViewer
---     Fully Patched – TBIGUI Style – Full UID – Stable
+--     Fully Patched – TBIGUI Style – Full UID – v2
 --========================================================--
 
 local PetViewer = {}
@@ -57,15 +57,15 @@ function PetViewer.Init(Tabs, Core, UI)
     local Dropdown = tab:CreateDropdown({
         Name = "Select Pet",
         Options = { "None" },
-        CurrentOption = { "None" },
+        CurrentOption = "None", -- IMPORTANT FIX
         MultipleOptions = false,
 
         Callback = function(option)
-            -- Rayfield sometimes returns { "string" }
+            -- Rayfield sometimes passes { "string" }
             if type(option) == "table" then
-                -- If Rayfield passed a Rayfield object instead of a string
+                -- If Rayfield passed its internal multi-select object, ignore
                 if option.Set ~= nil then
-                    return -- corrupted callback, ignore
+                    return
                 end
                 option = option[1]
             end
