@@ -1,6 +1,6 @@
 --========================================================--
 --                     A S T R A L
---        Cleaned Loader + PetViewer Included
+--        Cleaned Loader + PetViewer + Extras
 --========================================================--
 
 local ASTRAL = {}
@@ -32,7 +32,7 @@ end
 ASTRAL.REPO = "https://raw.githubusercontent.com/Zogog/ASTRAL/main/"
 
 --========================================================--
--- Load Core Modules (Only Supported Ones)
+-- Load Core Modules
 --========================================================--
 
 ASTRAL.Core.AdoptMeAPI = safeImport("Core/AdoptMeAPI.lua")
@@ -61,26 +61,24 @@ ASTRAL.UI.Window = Rayfield:CreateWindow({
 --========================================================--
 
 local Tabs = {}
+
 Tabs.Main       = ASTRAL.UI.Window:CreateTab("Main", "home")
---Tabs.Autofarm   = ASTRAL.UI.Window:CreateTab("Autofarm", "zap")
---Tabs.Teleports  = ASTRAL.UI.Window:CreateTab("Teleports", "map")
-Tabs.Pets       = ASTRAL.UI.Window:CreateTab("Pets", "paw-print") -- PetViewer tab
-Tabs.Extras     = ASTRAL.UI.Window:CreateTab("Extras", "settings")
+Tabs.Pets       = ASTRAL.UI.Window:CreateTab("Pets", "paw-print")
+Tabs.Extras     = ASTRAL.UI.Window:CreateTab("Extras", "settings") -- NEW TAB
+Tabs.Teleports  = ASTRAL.UI.Window:CreateTab("Teleports", "map")
+Tabs.Autofarm   = ASTRAL.UI.Window:CreateTab("Autofarm", "zap")
 
 ASTRAL.Tabs = Tabs
 
 --========================================================--
--- Load Modules (Only Supported Ones)
+-- Load Modules
 --========================================================--
 
 ASTRAL.Modules.Main        = safeImport("Modules/Main.lua")
 ASTRAL.Modules.AutoNeeds   = safeImport("Modules/AutoNeeds.lua")
 ASTRAL.Modules.TeleportHub = safeImport("Modules/TeleportHub.lua")
 ASTRAL.Modules.PetViewer   = safeImport("Modules/PetViewer.lua")
-ASTRAL.Modules.Extras      = safeImport("Modules/Extras.lua")
-
--- BabyFarm removed
--- InventoryDebug removed
+ASTRAL.Modules.Extras      = safeImport("Modules/Extras.lua") -- NEW
 
 --========================================================--
 -- Initialize Modules
@@ -102,15 +100,15 @@ local function initModule(name, module)
 end
 
 initModule("Main",        ASTRAL.Modules.Main)
---initModule("AutoNeeds",   ASTRAL.Modules.AutoNeeds)
---initModule("TeleportHub", ASTRAL.Modules.TeleportHub)
+initModule("AutoNeeds",   ASTRAL.Modules.AutoNeeds)
+initModule("TeleportHub", ASTRAL.Modules.TeleportHub)
 initModule("PetViewer",   ASTRAL.Modules.PetViewer)
-initModule("Extras",      ASTRAL.Modules.Extras)
+initModule("Extras",      ASTRAL.Modules.Extras) -- NEW
 
 --========================================================--
 -- Final Message
 --========================================================--
 
-print("ASTRAL Framework Loaded Successfully (Clean Edition + PetViewer)")
+print("ASTRAL Framework Loaded Successfully (Clean Edition + PetViewer + Extras)")
 
 return ASTRAL
