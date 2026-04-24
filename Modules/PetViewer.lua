@@ -1,10 +1,10 @@
 --========================================================--
---                 ASTRAL.Modules.PetViewer
---        Sirius Rayfield Compatible (Clean Version)
+--                 ASTRAL.Modules.PetViewer (Fixed)
 --========================================================--
 
 local PetViewer = {}
 
+-- Age names
 local NORMAL_AGES = {
     [1] = "Newborn",
     [2] = "Junior",
@@ -23,190 +23,210 @@ local NEON_AGES = {
     [6] = "Luminous",
 }
 
-local function IsNeon(p) return p and (p.is_neon or p.neon) end
-local function IsMega(p) return p and (p.is_mega_neon or p.mega_neon) end
-
-local function GetAgeName(p)
-    local age = (p and p.age) or 1
-    return (IsNeon(p) or IsMega(p)) and NEON_AGES[age] or NORMAL_AGES[age]
+local function GetAgeName(props)
+    local age = props.age or 1
+    if props.is_neon or props.is_mega_neon then
+        return NEON_AGES[age] or "Unknown"
+    end
+    return NORMAL_AGES[age] or "Unknown"
 end
 
-local function GetPetEmoji(p)
-    if IsMega(p) then return "🌈 " end
-    if IsNeon(p) then return "✨ " end
+local function GetEmoji(props)
+    if props.is_mega_neon then return "🌈 " end
+    if props.is_neon then return "✨ " end
     return ""
 end
 
-local function BuildPetTable(API)
-    local inv = API.GetPlayersInventory().pets
-    local pets = {}
-    for uid, data in pairs(inv) do
-        if data.kind ~= "practice_dog" then
-            table.insert(pets, {
-                id = uid,
-                kind = data.kind,
-                properties = data.properties,
-            })
-        end
-    end
-    return pets
-end
+--========================================================--
+-- INIT
+--========================================================--
 
 function PetViewer.Init(Tabs, Core, UI)
     local API = Core.AdoptMeAPI
+    local Utils = Core.Utils
     local tab = Tabs.Pets
 
     tab:CreateSection("Pet Viewer")
 
-    local PetCountLabel = tab:CreateLabel("Loading pets...")
-    local Details = tab:CreateParagraph({
-        Title = "Pet Details",
-        Content = "Select a pet from the dropdown.",
+    --------------------------------------------------------
+    -- UI Elements
+    --------------------------------------------------------
+
+    local PetListLabel = tab:CreateLabel("Loading pets...", "paw-print")
+
+    local Dropdown = tab:CreateDropdown({
+        Name = "Select Pet",
+        Options = {},
+        CurrentOption = "",
+        MultipleOptions = false,
+        Callback = function(option)
+            local pet = PetViewer.Map[option]
+            if not pet then return end
+
+            PetViewer.Selected = pet
+
+            Details:Set({
+                Title = "Pet Details",
+                Content = string.format(
+                    "Kind: %s\nAge: %s\nID: %s",
+                    pet.kind,
+                    GetAgeName(pet.properties),
+                    pet.id
+                ),
+            })
+        end,
     })
 
-    local PetDropdown = nil
-    local PetLookup = {}
-    local FullPetList = {}
+    local Details = tab:CreateParagraph({
+        Title = "Pet Details",
+        Content = "Select a pet to view details.",
+    })
 
-    local CurrentSearch = ""
-    local SortMode = "Alphabetical"
-    local NeonOnly = false
+    tab:CreateButton({
+        Name = "Equip Selected Pet",
+        Callback = function()
+            if PetViewer.Selected then
+                API.EquipPet(PetViewer.Selected.id)
+                if Core.SetEquippedPet then
+                    Core.SetEquippedPet(PetViewer.Selected.id)
+                end
+            end
+        end,
+    })
 
-    local function SortPets(list)
-        if SortMode == "Alphabetical" then
-            table.sort(list, function(a,b) return a.kind:lower() < b.kind:lower() end)
+    --------------------------------------------------------
+    -- Sorting
+    --------------------------------------------------------
 
-        elseif SortMode == "Age (Young → Old)" then
-            table.sort(list, function(a,b) return (a.properties.age or 0) < (b.properties.age or 0) end)
+    local SortMode = "A-Z"
 
-        elseif SortMode == "Age (Old → Young)" then
-            table.sort(list, function(a,b) return (a.properties.age or 0) > (b.properties.age or 0) end)
+    tab:CreateDropdown({
+        Name = "Sort By",
+        Options = {"A-Z", "Age", "Neon", "Mega"},
+        CurrentOption = "A-Z",
+        Callback = function(opt)
+            SortMode = opt
+            PetViewer.Refresh()
+        end,
+    })
 
-        elseif SortMode == "Neon/Mega First" then
-            table.sort(list, function(a,b)
-                local A = IsMega(a.properties) and 2 or IsNeon(a.properties) and 1 or 0
-                local B = IsMega(b.properties) and 2 or IsNeon(b.properties) and 1 or 0
-                if A == B then return a.kind:lower() < b.kind:lower() end
-                return A > B
-            end)
-        end
-        return list
-    end
-
-    local function BuildOptions()
-        local filtered = {}
-
-        for _, pet in ipairs(FullPetList) do
-            local props = pet.properties
-
-            if NeonOnly and not (IsNeon(props) or IsMega(props)) then continue end
-            if CurrentSearch ~= "" and not pet.kind:lower():find(CurrentSearch) then continue end
-
-            table.insert(filtered, pet)
-        end
-
-        filtered = SortPets(filtered)
-
-        local options = {}
-        PetLookup = {}
-
-        for _, pet in ipairs(filtered) do
-            local props = pet.properties
-            local display = string.format(
-                "%s%s (%s) — %s",
-                GetPetEmoji(props),
-                pet.kind,
-                GetAgeName(props),
-                pet.id
-            )
-
-            table.insert(options, display)
-            PetLookup[display] = pet
-        end
-
-        return options
-    end
-
-    local function RefreshPets()
-        FullPetList = BuildPetTable(API)
-        PetCountLabel:Set("You have " .. #FullPetList .. " pets")
-
-        local options = BuildOptions()
-
-        if not PetDropdown then
-            PetDropdown = tab:CreateDropdown({
-                Name = "Select a Pet",
-                Options = options,
-                CurrentOption = { options[1] or "None" },
-                MultipleOptions = false,
-
-                Callback = function(_)
-                    local selected = PetDropdown.CurrentOption and PetDropdown.CurrentOption[1]
-                    if typeof(selected) ~= "string" then return end
-
-                    local pet = PetLookup[selected]
-                    if not pet then return end
-
-                    local ok, err = pcall(function()
-                        API.EquipPet(pet.id)
-                    end)
-
-                    Details:Set({
-                        Title = "Pet Details",
-                        Content = string.format(
-                            "Kind: %s\nAge: %s\nID: %s\nNeon: %s\nMega: %s\nEquip: %s",
-                            pet.kind,
-                            GetAgeName(pet.properties),
-                            pet.id,
-                            tostring(IsNeon(pet.properties)),
-                            tostring(IsMega(pet.properties)),
-                            ok and "Success" or err
-                        ),
-                    })
-                end,
-            })
-
-        else
-            -- We will add proper update logic later once we know the correct method
-            -- For now, dropdown refresh is disabled to avoid errors
-        end
-    end
+    --------------------------------------------------------
+    -- Search
+    --------------------------------------------------------
 
     tab:CreateInput({
         Name = "Search Pets",
         PlaceholderText = "Type a pet name...",
         RemoveTextAfterFocusLost = false,
         Callback = function(text)
-            CurrentSearch = text:lower()
-            RefreshPets()
+            PetViewer.SearchText = text:lower()
+            PetViewer.Refresh()
         end,
     })
 
-    tab:CreateDropdown({
-        Name = "Sort By",
-        Options = {
-            "Alphabetical",
-            "Age (Young → Old)",
-            "Age (Old → Young)",
-            "Neon/Mega First",
-        },
-        CurrentOption = { "Alphabetical" },
-        Callback = function(opt)
-            SortMode = opt[1]
-            RefreshPets()
-        end,
-    })
+    --------------------------------------------------------
+    -- Load Pets
+    --------------------------------------------------------
 
-    tab:CreateToggle({
-        Name = "Show Only Neon/Mega",
-        CurrentValue = false,
-        Callback = function(state)
-            NeonOnly = state
-            RefreshPets()
-        end,
-    })
+    local function LoadPets()
+        local inv = API.GetPlayersInventory()
+        if not inv or not inv.pets then
+            PetListLabel:Set("No pets found.")
+            return
+        end
 
-    RefreshPets()
+        local pets = {}
+
+        for id, data in pairs(inv.pets) do
+            if data.id ~= "practice_dog" then
+                table.insert(pets, {
+                    id = id,
+                    kind = data.id,
+                    properties = data.properties or {},
+                })
+            end
+        end
+
+        PetViewer.All = pets
+        PetViewer.Refresh()
+    end
+
+    --------------------------------------------------------
+    -- Refresh Logic
+    --------------------------------------------------------
+
+    function PetViewer.Refresh()
+        if not PetViewer.All then return end
+
+        local list = {}
+        local map = {}
+
+        local search = PetViewer.SearchText or ""
+
+        -- Filter
+        for _, pet in ipairs(PetViewer.All) do
+            if pet.kind:lower():find(search) then
+                table.insert(list, pet)
+            end
+        end
+
+        -- Sort
+        if SortMode == "A-Z" then
+            table.sort(list, function(a, b)
+                return a.kind < b.kind
+            end)
+
+        elseif SortMode == "Age" then
+            table.sort(list, function(a, b)
+                return (a.properties.age or 1) > (b.properties.age or 1)
+            end)
+
+        elseif SortMode == "Neon" then
+            table.sort(list, function(a, b)
+                return (a.properties.is_neon and 1 or 0) >
+                       (b.properties.is_neon and 1 or 0)
+            end)
+
+        elseif SortMode == "Mega" then
+            table.sort(list, function(a, b)
+                return (a.properties.is_mega_neon and 1 or 0) >
+                       (b.properties.is_mega_neon and 1 or 0)
+            end)
+        end
+
+        -- Build dropdown list
+        local display = {}
+
+        for _, pet in ipairs(list) do
+            local props = pet.properties
+            local entry = string.format(
+                "%s%s (%s)",
+                GetEmoji(props),
+                pet.kind,
+                GetAgeName(props)
+            )
+
+            map[entry] = pet
+            table.insert(display, entry)
+        end
+
+        PetViewer.Map = map
+
+        Dropdown:Refresh(display)
+
+        PetListLabel:Set("You have " .. tostring(#list) .. " pets")
+    end
+
+    --------------------------------------------------------
+    -- Initial Load
+    --------------------------------------------------------
+
+    LoadPets()
+
+    tab:CreateButton({
+        Name = "Refresh Pet List",
+        Callback = LoadPets,
+    })
 end
 
 return PetViewer
