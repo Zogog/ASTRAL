@@ -81,6 +81,7 @@ end
 --                 FEATURE MODULES
 --========================================================--
 
+ASTRAL.Modules.Main        = safeImport("Modules/Main.lua")
 ASTRAL.Modules.PetViewer   = safeImport("Modules/PetViewer.lua")
 ASTRAL.Modules.TeleportHub = safeImport("Modules/TeleportHub.lua")
 ASTRAL.Modules.AutoNeeds   = safeImport("Modules/AutoNeeds.lua")
