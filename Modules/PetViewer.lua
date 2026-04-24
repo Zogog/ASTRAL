@@ -67,8 +67,8 @@ function PetViewer.Init(Tabs, Core, UI)
             end
             if not option or option == "None" then return end
 
-            -- Extract UID from TBIGUI-style string
-            -- Format: "index=kind: age -- ABC123"
+            -- Extract FULL UID from TBIGUI-style string
+            -- Format: "index=kind: AgeName -- FULLUID"
             local uid = option:match("%-%-%s*(.+)$")
             if not uid then
                 warn("[PetViewer] Failed to extract UID from:", option)
@@ -93,7 +93,7 @@ function PetViewer.Init(Tabs, Core, UI)
                 ),
             })
 
-            -- Equip immediately
+            -- Equip immediately (FULL UID)
             if API.EquipPet then
                 API.EquipPet(uid)
             elseif Core.SetEquippedPet then
@@ -208,7 +208,7 @@ function PetViewer.Init(Tabs, Core, UI)
             end)
         end
 
-        -- Build TBIGUI-style dropdown list
+        -- Build TBIGUI-style dropdown list (FULL UID)
         local display = {}
 
         for index, pet in ipairs(list) do
@@ -218,7 +218,7 @@ function PetViewer.Init(Tabs, Core, UI)
                 index,
                 pet.kind,
                 GetAgeName(props),
-                pet.id
+                pet.id  -- FULL UID
             )
 
             table.insert(display, label)
