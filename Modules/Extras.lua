@@ -27,7 +27,6 @@ function Extras.Init(Tabs, Core, UI)
         Callback = function(value)
             local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
             local hum = char:WaitForChild("Humanoid")
-
             hum.WalkSpeed = value
         end,
     })
@@ -45,7 +44,6 @@ function Extras.Init(Tabs, Core, UI)
         Callback = function(value)
             local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
             local hum = char:WaitForChild("Humanoid")
-
             hum.JumpPower = value
         end,
     })
@@ -55,42 +53,30 @@ function Extras.Init(Tabs, Core, UI)
     --------------------------------------------------------
     tab:CreateSection("Performance")
 
-    --------------------------------------------------------
-    -- Disable Rendering
-    --------------------------------------------------------
     tab:CreateToggle({
         Name = "Disable Rendering (white screen, boosts FPS)",
         CurrentValue = false,
-
         Callback = function(state)
             RunService:Set3dRenderingEnabled(not state)
         end,
     })
 
-    --------------------------------------------------------
-    -- FPS Cap
-    --------------------------------------------------------
     tab:CreateSlider({
         Name = "FPS Cap",
         Range = { 5, 240 },
         Increment = 1,
         Suffix = "FPS",
         CurrentValue = 60,
-
         Callback = function(value)
             local ok = pcall(function()
                 setfpscap(value)
             end)
-
             if not ok then
                 tab:CreateLabel("Your executor does not support fpscap.", "alert-triangle")
             end
         end,
     })
 
-    --------------------------------------------------------
-    -- Tick Delay (for future autofarms)
-    --------------------------------------------------------
     Extras.TickDelay = 2
 
     tab:CreateSlider({
@@ -99,21 +85,16 @@ function Extras.Init(Tabs, Core, UI)
         Increment = 0.1,
         Suffix = "Seconds",
         CurrentValue = 2,
-
         Callback = function(value)
             Extras.TickDelay = value
         end,
     })
 
-    --------------------------------------------------------
-    -- Anti-AFK
-    --------------------------------------------------------
     tab:CreateSection("Quality of Life")
 
     tab:CreateToggle({
         Name = "Anti-AFK",
         CurrentValue = true,
-
         Callback = function(state)
             if state then
                 Extras.AntiAFKConnection = LocalPlayer.Idled:Connect(function()
