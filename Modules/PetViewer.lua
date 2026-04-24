@@ -1,6 +1,6 @@
 --========================================================--
 --                 ASTRAL.Modules.PetViewer
---        Sirius Rayfield Compatible + Safe Debug
+--        Sirius Rayfield Compatible (Clean Version)
 --========================================================--
 
 local PetViewer = {}
@@ -42,7 +42,11 @@ local function BuildPetTable(API)
     local pets = {}
     for uid, data in pairs(inv) do
         if data.kind ~= "practice_dog" then
-            table.insert(pets, { id = uid, kind = data.kind, properties = data.properties })
+            table.insert(pets, {
+                id = uid,
+                kind = data.kind,
+                properties = data.properties,
+            })
         end
     end
     return pets
@@ -55,7 +59,10 @@ function PetViewer.Init(Tabs, Core, UI)
     tab:CreateSection("Pet Viewer")
 
     local PetCountLabel = tab:CreateLabel("Loading pets...")
-    local Details = tab:CreateParagraph({ Title = "Pet Details", Content = "Select a pet." })
+    local Details = tab:CreateParagraph({
+        Title = "Pet Details",
+        Content = "Select a pet from the dropdown.",
+    })
 
     local PetDropdown = nil
     local PetLookup = {}
@@ -88,6 +95,7 @@ function PetViewer.Init(Tabs, Core, UI)
 
     local function BuildOptions()
         local filtered = {}
+
         for _, pet in ipairs(FullPetList) do
             local props = pet.properties
 
@@ -104,12 +112,14 @@ function PetViewer.Init(Tabs, Core, UI)
 
         for _, pet in ipairs(filtered) do
             local props = pet.properties
-            local display = string.format("%s%s (%s) — %s",
+            local display = string.format(
+                "%s%s (%s) — %s",
                 GetPetEmoji(props),
                 pet.kind,
                 GetAgeName(props),
                 pet.id
             )
+
             table.insert(options, display)
             PetLookup[display] = pet
         end
@@ -156,24 +166,12 @@ function PetViewer.Init(Tabs, Core, UI)
                 end,
             })
 
-            --------------------------------------------------------
-            -- ⭐ DEBUGGER: PRINT ALL METHODS ON THE DROPDOWN OBJECT
-            --------------------------------------------------------
-            print("\n[DEBUG] Dropdown methods:")
-            for k, v in pairs(PetDropdown) do
-                print("   ", k, typeof(v))
-            end
-            print("[DEBUG] End of dropdown method list\n")
-
         else
-            -- DO NOT CALL ANY METHOD YET — we need debugger output first
-            print("[DEBUG] RefreshPets called — dropdown exists, but update disabled until debugger output is known.")
+            -- We will add proper update logic later once we know the correct method
+            -- For now, dropdown refresh is disabled to avoid errors
         end
     end
 
-    --------------------------------------------------------
-    -- SEARCH BAR
-    --------------------------------------------------------
     tab:CreateInput({
         Name = "Search Pets",
         PlaceholderText = "Type a pet name...",
@@ -184,9 +182,6 @@ function PetViewer.Init(Tabs, Core, UI)
         end,
     })
 
-    --------------------------------------------------------
-    -- SORTING
-    --------------------------------------------------------
     tab:CreateDropdown({
         Name = "Sort By",
         Options = {
@@ -202,25 +197,12 @@ function PetViewer.Init(Tabs, Core, UI)
         end,
     })
 
-    --------------------------------------------------------
-    -- NEON FILTER
-    --------------------------------------------------------
     tab:CreateToggle({
         Name = "Show Only Neon/Mega",
         CurrentValue = false,
         Callback = function(state)
             NeonOnly = state
             RefreshPets()
-        end,
-    })
-
-    --------------------------------------------------------
-    -- GET CURRENTLY EQUIPPED PET
-    --------------------------------------------------------
-    tab:CreateButton({
-        Name = "Get Currently Equipped Pet",
-        Callback = function()
-            print("[DEBUG] Get Equipped Pet pressed — waiting for dropdown method list first.")
         end,
     })
 
