@@ -1,28 +1,16 @@
 --========================================================--
 --                 ASTRAL.UI.Dropdowns
---     Shared dropdown builders + filtering utilities
 --========================================================--
-
-local Utils = require(script.Parent.Parent.Core.Utils)
 
 local Dropdowns = {}
 
---========================================================--
---     BUILD A GENERIC DROPDOWN LIST FROM PET DATA
---========================================================--
+-- Utils will be injected by ASTRAL.lua
+local Utils = nil
 
--- petsTable format:
--- {
---     [1] = { id = "abc123", kind = "dog", age = 3 },
---     [2] = { id = "xyz789", kind = "cat", age = 1 },
--- }
---
--- Returns:
--- {
---     "1=dog: 3 -- abc123",
---     "2=cat: 1 -- xyz789",
--- }
---
+function Dropdowns.SetDependencies(core)
+    Utils = core.Utils
+end
+
 function Dropdowns.BuildPetList(petsTable)
     local list = {}
 
@@ -50,10 +38,6 @@ function Dropdowns.BuildPetList(petsTable)
     return list
 end
 
---========================================================--
---     FILTER A DROPDOWN LIST BY SEARCH TEXT
---========================================================--
-
 function Dropdowns.Filter(list, search)
     if not search or search == "" then
         return list
@@ -71,34 +55,14 @@ function Dropdowns.Filter(list, search)
     return results
 end
 
---========================================================--
---     EXTRACT PET INDEX FROM DROPDOWN STRING
---========================================================--
-
--- Input: "12=dog: 3 -- abc123"
--- Output: 12
 function Dropdowns.GetIndexFromOption(option)
-    return Utils.NumberBeforeEqual(option)
+    return tonumber(option:match("^(%d+)="))
 end
 
---========================================================--
---     EXTRACT PET ID FROM PET DATA MAP
---========================================================--
-
--- petDataMap format:
--- {
---     [1] = { id = "abc123", kind = "dog", age = 3 },
---     [2] = { id = "xyz789", kind = "cat", age = 1 },
--- }
---
 function Dropdowns.GetPetIdFromMap(petDataMap, index)
     local entry = petDataMap[index]
     return entry and entry.id or nil
 end
-
---========================================================--
---     BUILD PET DATA MAP (INDEX → PET INFO)
---========================================================--
 
 function Dropdowns.BuildPetDataMap(petsTable)
     local map = {}
@@ -113,9 +77,5 @@ function Dropdowns.BuildPetDataMap(petsTable)
 
     return map
 end
-
---========================================================--
---     EXPORT
---========================================================--
 
 return Dropdowns
