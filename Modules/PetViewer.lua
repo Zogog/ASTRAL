@@ -4,7 +4,10 @@
 
 local PetViewer = {}
 
--- Age tables
+--========================================================--
+-- AGE TABLES
+--========================================================--
+
 local NORMAL_AGES = {
     [1] = "Newborn",
     [2] = "Junior",
@@ -23,26 +26,41 @@ local NEON_AGES = {
     [6] = "Luminous",
 }
 
-local function GetAgeName(data)
-    local age = data.properties.age or 1
+--========================================================--
+-- PROPERTY HELPERS
+--========================================================--
 
-    if data.properties.mega or data.properties.neon then
+local function IsNeon(props)
+    return props.is_neon or props.neon
+end
+
+local function IsMega(props)
+    return props.is_mega_neon or props.mega_neon
+end
+
+local function GetAgeName(props)
+    local age = props.age or 1
+
+    if IsMega(props) or IsNeon(props) then
         return NEON_AGES[age] or "Unknown"
     else
         return NORMAL_AGES[age] or "Unknown"
     end
 end
 
-local function GetPetEmoji(data)
-    if data.properties.mega then
-        return "🌈"
-    elseif data.properties.neon then
-        return "✨"
+local function GetPetEmoji(props)
+    if IsMega(props) then
+        return "🌈 "
+    elseif IsNeon(props) then
+        return "✨ "
     end
     return ""
 end
 
--- Build pet table
+--========================================================--
+-- BUILD PET TABLE
+--========================================================--
+
 local function BuildPetTable(API)
     local inv = API.GetPlayersInventory().pets
     local pets = {}
@@ -63,6 +81,10 @@ local function BuildPetTable(API)
 
     return pets
 end
+
+--========================================================--
+-- INIT
+--========================================================--
 
 function PetViewer.Init(Tabs, Core, UI)
     local API = Core.AdoptMeAPI
@@ -98,8 +120,9 @@ function PetViewer.Init(Tabs, Core, UI)
         PetLookup = {}
 
         for _, pet in ipairs(pets) do
-            local emoji = GetPetEmoji(pet)
-            local ageName = GetAgeName(pet)
+            local props = pet.properties
+            local emoji = GetPetEmoji(props)
+            local ageName = GetAgeName(props)
 
             local display = string.format("%s%s (%s)", emoji, pet.kind, ageName)
 
@@ -122,10 +145,10 @@ function PetViewer.Init(Tabs, Core, UI)
                         Content = string.format(
                             "Kind: %s\nAge: %s\nID: %s\nNeon: %s\nMega: %s\n\nEquipped!",
                             pet.kind,
-                            GetAgeName(pet),
+                            GetAgeName(pet.properties),
                             pet.id,
-                            tostring(pet.properties.neon),
-                            tostring(pet.properties.mega)
+                            tostring(IsNeon(pet.properties)),
+                            tostring(IsMega(pet.properties))
                         ),
                     })
                 end,
@@ -135,8 +158,14 @@ function PetViewer.Init(Tabs, Core, UI)
         end
     end
 
+    ------------------------------------------------------------
+    -- Initial load
+    ------------------------------------------------------------
     RefreshPets()
 
+    ------------------------------------------------------------
+    -- Refresh button
+    ------------------------------------------------------------
     tab:CreateButton({
         Name = "Refresh Pet List",
         Callback = RefreshPets,
