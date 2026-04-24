@@ -1,16 +1,8 @@
 --========================================================--
 --                 ASTRAL.Modules.PetViewer
---        Clean, modular pet viewer for Adopt Me
 --========================================================--
-
-local Dropdowns = require(script.Parent.Parent.UI.Dropdowns)
-local Utils = require(script.Parent.Parent.Core.Utils)
 
 local PetViewer = {}
-
---========================================================--
---                 INTERNAL HELPERS
---========================================================--
 
 local function BuildPetTable(API)
     local inv = API.GetPlayersInventory().pets
@@ -29,31 +21,28 @@ local function BuildPetTable(API)
     return pets
 end
 
---========================================================--
---                 UI CREATION
---========================================================--
+function PetViewer.Init(Tabs, Core, UI)
+    local API = Core.AdoptMeAPI
+    local Utils = Core.Utils
+    local Dropdowns = UI.Dropdowns
 
-function PetViewer.Init(Tabs, API)
     local tab = Tabs.Pets
 
     tab:CreateSection("Pet Viewer")
 
     local PetListLabel = tab:CreateLabel("Loading pets...", "paw-print")
 
-    -- Scrollable list container
     local PetList = tab:CreateParagraph({
         Title = "Your Pets",
         Content = "Loading...",
     })
 
-    -- Details panel
     local Details = tab:CreateParagraph({
         Title = "Pet Details",
         Content = "Select a pet to view details.",
     })
 
-    -- Equip button
-    local EquipButton = tab:CreateButton({
+    tab:CreateButton({
         Name = "Equip Selected Pet",
         Callback = function()
             if PetViewer.SelectedPetId then
@@ -61,10 +50,6 @@ function PetViewer.Init(Tabs, API)
             end
         end,
     })
-
-    --========================================================--
-    --                 LOAD PETS
-    --========================================================--
 
     local function RefreshPets()
         local pets = BuildPetTable(API)
@@ -80,13 +65,11 @@ function PetViewer.Init(Tabs, API)
 
         PetListLabel:Set("You have " .. #pets .. " pets")
 
-        -- Build dropdown-style list
         local list = Dropdowns.BuildPetList(pets)
         local map = Dropdowns.BuildPetDataMap(pets)
 
-        -- Build display text
         local display = {}
-        for i, item in ipairs(list) do
+        for _, item in ipairs(list) do
             table.insert(display, item)
         end
 
@@ -95,16 +78,11 @@ function PetViewer.Init(Tabs, API)
             Content = table.concat(display, "\n"),
         })
 
-        -- Store for selection
         PetViewer.PetList = list
         PetViewer.PetMap = map
     end
 
     RefreshPets()
-
-    --========================================================--
-    --                 SEARCH BAR
-    --========================================================--
 
     tab:CreateInput({
         Name = "Search Pets",
@@ -138,10 +116,6 @@ function PetViewer.Init(Tabs, API)
         end,
     })
 
-    --========================================================--
-    --                 SELECT PET INPUT
-    --========================================================--
-
     tab:CreateInput({
         Name = "Select Pet (Enter Index)",
         PlaceholderText = "Example: 1",
@@ -172,10 +146,6 @@ function PetViewer.Init(Tabs, API)
             })
         end,
     })
-
-    --========================================================--
-    --                 REFRESH BUTTON
-    --========================================================--
 
     tab:CreateButton({
         Name = "Refresh Pet List",
