@@ -1,18 +1,12 @@
 --========================================================--
 --                 ASTRAL.Core.Inventory
---      Centralized inventory helpers for all modules
 --========================================================--
-
-local Utils = require(script.Parent.Utils)
 
 local Inventory = {}
 
---========================================================--
---                 NORMALIZATION HELPERS
---========================================================--
-
 local function normalize(str)
-    return Utils.Normalize(str)
+    if not str then return "" end
+    return string.lower(tostring(str))
 end
 
 local function isMatch(name, query)
@@ -20,10 +14,6 @@ local function isMatch(name, query)
     query = normalize(query)
     return string.find(name, query, 1, true) ~= nil
 end
-
---========================================================--
---                 GENERIC FILTER HELPERS
---========================================================--
 
 function Inventory.FilterItems(items, predicate)
     local result = {}
@@ -48,16 +38,6 @@ function Inventory.CountItems(items, predicate)
 
     return count
 end
-
---========================================================--
---                 POTION HELPERS
---========================================================--
-
--- items format (from API.GetPlayersInventory().items):
--- {
---   ["abc"] = { id = "pet_age_potion", amount = 3, ... },
---   ["xyz"] = { id = "apple", amount = 5, ... },
--- }
 
 function Inventory.GetFirstItemById(items, targetId)
     targetId = normalize(targetId)
@@ -93,16 +73,6 @@ function Inventory.CountItemId(items, targetId)
 
     return total
 end
-
---========================================================--
---                 EGG / PET HELPERS
---========================================================--
-
--- pets format (from API.GetPlayersInventory().pets):
--- {
---   ["unique1"] = { id = "cracked_egg", properties = {...} },
---   ["unique2"] = { id = "dog", properties = {...} },
--- }
 
 function Inventory.FilterEggs(pets, isEggPredicate)
     local result = {}
@@ -142,12 +112,6 @@ function Inventory.GetRandomKey(map)
     return keys[math.random(1, #keys)]
 end
 
---========================================================--
---                 HIGH-LEVEL HELPERS (API-ORIENTED)
---========================================================--
-
--- These helpers expect an API object with GetPlayersInventory()
-
 function Inventory.GetItems(API)
     local inv = API.GetPlayersInventory()
     return inv.items or {}
@@ -167,9 +131,5 @@ function Inventory.GetFirstPotionUnique(API, potionId)
     local items = Inventory.GetItems(API)
     return Inventory.GetFirstItemById(items, potionId)
 end
-
---========================================================--
---                 EXPORT
---========================================================--
 
 return Inventory
