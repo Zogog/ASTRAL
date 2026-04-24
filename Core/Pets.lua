@@ -1,23 +1,13 @@
 --========================================================--
 --                 ASTRAL.Core.Pets
---      Centralized pet logic for all modules
 --========================================================--
-
-local Utils = require(script.Parent.Utils)
 
 local Pets = {}
 
---========================================================--
---                 NORMALIZATION HELPERS
---========================================================--
-
 local function normalize(str)
-    return Utils.Normalize(str)
+    if not str then return "" end
+    return string.lower(tostring(str))
 end
-
---========================================================--
---                 PET TYPE HELPERS
---========================================================--
 
 function Pets.IsEgg(petData)
     if not petData or not petData.id then
@@ -32,11 +22,6 @@ function Pets.IsPet(petData)
     return not Pets.IsEgg(petData)
 end
 
---========================================================--
---                 AGE HELPERS
---========================================================--
-
--- Age scale: 0–6 (6 = full grown)
 function Pets.IsFullGrown(petData)
     if not petData or not petData.properties then
         return false
@@ -54,10 +39,6 @@ function Pets.GetAge(petData)
     return petData.properties.age or 0
 end
 
---========================================================--
---                 KIND HELPERS
---========================================================--
-
 function Pets.GetKind(petData)
     if not petData then return nil end
     return petData.id
@@ -67,10 +48,6 @@ function Pets.IsSameKind(petA, petB)
     if not petA or not petB then return false end
     return normalize(petA.id) == normalize(petB.id)
 end
-
---========================================================--
---                 FILTER HELPERS
---========================================================--
 
 function Pets.Filter(pets, predicate)
     local result = {}
@@ -104,10 +81,6 @@ function Pets.FilterByKind(pets, kind)
     end)
 end
 
---========================================================--
---                 SORTING HELPERS
---========================================================--
-
 function Pets.SortAlphabetical(pets)
     local list = {}
 
@@ -136,10 +109,6 @@ function Pets.SortByAge(pets)
     return list
 end
 
---========================================================--
---                 RANDOM SELECTION
---========================================================--
-
 function Pets.GetRandom(pets)
     local keys = {}
 
@@ -159,12 +128,6 @@ function Pets.GetRandomSameKind(pets, kind)
     return Pets.GetRandom(filtered)
 end
 
---========================================================--
---                 HIGH-LEVEL HELPERS (API-ORIENTED)
---========================================================--
-
--- These helpers expect an API object with GetPlayersInventory()
-
 function Pets.GetAll(API)
     local inv = API.GetPlayersInventory()
     return inv.pets or {}
@@ -182,7 +145,6 @@ function Pets.GetSameKind(API, exclude1, exclude2, kind)
     local pets = Pets.GetAll(API)
     local filtered = Pets.FilterByKind(pets, kind)
 
-    -- Remove excluded pets
     filtered[exclude1] = nil
     filtered[exclude2] = nil
 
@@ -198,9 +160,5 @@ function Pets.GetRandomKind(API, unique)
     local kind = data.id
     return Pets.GetRandomSameKind(pets, kind)
 end
-
---========================================================--
---                 EXPORT
---========================================================--
 
 return Pets
