@@ -1,184 +1,154 @@
 --========================================================--
---                 ASTRAL.Modules.Main
+--                    ASTRAL.Main (TBIGUI API)
 --========================================================--
 
 local Main = {}
 
-local StartTime = os.time()
+-- Age tables (same as PetViewer)
+local NORMAL_AGES = {
+    [1] = "Newborn",
+    [2] = "Junior",
+    [3] = "Pre-Teen",
+    [4] = "Teen",
+    [5] = "Post-Teen",
+    [6] = "Full Grown",
+}
 
-local function Log(msg)
-    print("[ASTRAL Main] " .. msg)
+local NEON_AGES = {
+    [1] = "Reborn",
+    [2] = "Twinkle",
+    [3] = "Sparkle",
+    [4] = "Flare",
+    [5] = "Sunshine",
+    [6] = "Luminous",
+}
+
+local function IsNeon(props)
+    return props and (props.is_neon or props.neon)
 end
 
-local function FormatTime(seconds)
-    local h = math.floor(seconds / 3600)
-    local m = math.floor((seconds % 3600) / 60)
-    local s = seconds % 60
-    return string.format("%02d:%02d:%02d", h, m, s)
+local function IsMega(props)
+    return props and (props.is_mega_neon or props.mega_neon)
 end
 
-local function SafeCall(fn, ...)
-    local ok, result = pcall(fn, ...)
-    if not ok then
-        warn("[ASTRAL Main] Error:", result)
-        return nil
-    end
-    return result
+local function GetAgeName(props)
+    local age = (props and props.age) or 1
+    return (IsNeon(props) or IsMega(props)) and NEON_AGES[age] or NORMAL_AGES[age]
 end
 
-local function GetMoney(API)
-    local data = SafeCall(API.GetClientData)
-    if not data or not data.Bucks then return "?" end
-    return tostring(data.Bucks)
+local function GetPetEmoji(props)
+    if IsMega(props) then return "🌈 " end
+    if IsNeon(props) then return "✨ " end
+    return ""
 end
 
-local function GetInterior(API)
-    local interior = SafeCall(API.GetCurrentInterior)
-    return interior or "Unknown"
-end
-
-local function GetEquippedPetsString(API)
-    local pets = SafeCall(API.GetEquippedPets)
-    if not pets or #pets == 0 then
-        return "None"
-    end
-
-    local parts = {}
-    for _, pet in ipairs(pets) do
-        local name = pet.Name or "Pet"
-        local age = pet.Age or "?"
-        table.insert(parts, string.format("%s (age %s)", name, age))
-    end
-
-    return table.concat(parts, ", ")
-end
-
-local function GetModuleStatus(Modules, key)
-    local mod = Modules[key]
-    if not mod or not mod.GetStatus then
-        return "unknown"
-    end
-    local status = SafeCall(mod.GetStatus)
-    return status or "unknown"
-end
+--========================================================--
+-- INIT
+--========================================================--
 
 function Main.Init(Tabs, Core, UI)
-    if not Tabs then
-        warn("[ASTRAL Main] Tabs not available, skipping Main dashboard")
-        return
-    end
-
-    local API = Core.AdoptMeAPI or {}
-    local Modules = Core.Modules or {}
-
-    local tab = Tabs.Main or Tabs:CreateTab("Main", "home")
-
-    --========================================================--
-    --                 ASTRAL STATUS
-    --========================================================--
+    local API = Core.AdoptMeAPI
+    local tab = Tabs.Main
 
     tab:CreateSection("ASTRAL Status")
 
-    local VersionLabel = tab:CreateLabel("Version: v2.0")
-    local SafeModeLabel = tab:CreateLabel("SafeMode: ON")
-    local ModulesLabel = tab:CreateLabel("Modules: loading...")
-    local GitHubLabel  = tab:CreateLabel("GitHub: OK")
-
-    --========================================================--
-    --                 PLAYER INFO
-    --========================================================--
-
-    tab:CreateSection("Player Info")
-
-    local Player = game.Players.LocalPlayer
-    local PlayerName = Player and Player.Name or "Unknown"
-
-    local PlayerLabel  = tab:CreateLabel("Player: " .. PlayerName)
-    local MoneyLabel   = tab:CreateLabel("Money: ?")
-    local InteriorLabel = tab:CreateLabel("Interior: Unknown")
-
-    --========================================================--
-    --                 EQUIPPED PETS
-    --========================================================--
-
-    tab:CreateSection("Equipped Pets")
-
-    local EquippedPetsLabel = tab:CreateLabel("Equipped: loading...")
-    local BabyFarmLabel     = tab:CreateLabel("Baby Farm: unknown")
-
-    --========================================================--
-    --                 SESSION STATS
-    --========================================================--
-
-    tab:CreateSection("Session Stats")
+    --------------------------------------------------------
+    -- RUNTIME
+    --------------------------------------------------------
+    local StartTime = tick()
 
     local RuntimeLabel = tab:CreateLabel("Runtime: 00:00:00")
-    local BucksLabel   = tab:CreateLabel("Bucks: 0 (+0)")
-    local PotionsLabel = tab:CreateLabel("Potions: 0 (+0)")
-    local EggsLabel    = tab:CreateLabel("Candy Eggs: 0 (+0)")
-
-    local StartBucks = tonumber(GetMoney(API)) or 0
-    local LastBucks  = StartBucks
-    local PotionsGained = 0
-    local EggsGained    = 0
-
-    --========================================================--
-    --                 FARM STATUS
-    --========================================================--
-
-    tab:CreateSection("Farm Status")
-
-    local AutoNeedsStatusLabel   = tab:CreateLabel("AutoNeeds: unknown")
-    local BabyFarmStatusLabel    = tab:CreateLabel("BabyFarm: unknown")
-    local AutoEggsStatusLabel    = tab:CreateLabel("AutoEggs: unknown")
-    local AutoPotionsStatusLabel = tab:CreateLabel("AutoPotions: unknown")
-
-    --========================================================--
-    --                 AUTO REFRESH LOOP
-    --========================================================--
-
-    Log("Main dashboard initialized")
 
     task.spawn(function()
-        while true do
-            task.wait(1)
-
-            -- Runtime
-            local runtime = os.time() - StartTime
-            RuntimeLabel:Set("Runtime: " .. FormatTime(runtime))
-
-            -- Money + Bucks gained
-            local moneyStr = GetMoney(API)
-            MoneyLabel:Set("Money: " .. moneyStr)
-
-            local currentBucks = tonumber(moneyStr) or LastBucks
-            local diff = currentBucks - StartBucks
-            BucksLabel:Set(string.format("Bucks: %d (+%d)", currentBucks, diff))
-            LastBucks = currentBucks
-
-            -- Interior
-            InteriorLabel:Set("Interior: " .. GetInterior(API))
-
-            -- Equipped pets
-            EquippedPetsLabel:Set("Equipped: " .. GetEquippedPetsString(API))
-
-            -- BabyFarm status
-            BabyFarmLabel:Set("Baby Farm: " .. GetModuleStatus(Core.Modules or {}, "BabyFarm"))
-
-            -- Farm status
-            AutoNeedsStatusLabel:Set("AutoNeeds: " .. GetModuleStatus(Core.Modules or {}, "AutoNeeds"))
-            BabyFarmStatusLabel:Set("BabyFarm: " .. GetModuleStatus(Core.Modules or {}, "BabyFarm"))
-            AutoEggsStatusLabel:Set("AutoEggs: " .. GetModuleStatus(Core.Modules or {}, "AutoEggs"))
-            AutoPotionsStatusLabel:Set("AutoPotions: " .. GetModuleStatus(Core.Modules or {}, "AutoPotions"))
-
-            -- ASTRAL status
-            local safeMode = Core.SafeMode
-            SafeModeLabel:Set("SafeMode: " .. (safeMode and "ON" or "OFF"))
-
-            -- Placeholder until you wire module tracking
-            ModulesLabel:Set("Modules: dynamic tracking coming soon")
+        while task.wait(1) do
+            local elapsed = tick() - StartTime
+            local h = math.floor(elapsed / 3600)
+            local m = math.floor((elapsed % 3600) / 60)
+            local s = math.floor(elapsed % 60)
+            RuntimeLabel:Set(string.format("Runtime: %02d:%02d:%02d", h, m, s))
         end
     end)
+
+    --------------------------------------------------------
+    -- BUCKS
+    --------------------------------------------------------
+    local BucksLabel = tab:CreateLabel("Bucks: Loading...")
+
+    task.spawn(function()
+        while task.wait(1) do
+            local bucks = API.GetPlayerMoney and API.GetPlayerMoney() or 0
+            BucksLabel:Set("Bucks: " .. tostring(bucks))
+        end
+    end)
+
+    --------------------------------------------------------
+    -- POTIONS (Age Potions Only)
+    --------------------------------------------------------
+    local PotionsLabel = tab:CreateLabel("Age Potions: Loading...")
+
+    local function CountAgePotions()
+        local inv = API.GetPlayersInventory and API.GetPlayersInventory()
+        if not inv or not inv.food then return 0 end
+
+        local count = 0
+        for _, item in pairs(inv.food) do
+            if item.kind == "pet_age_potion" then
+                count += 1
+            end
+        end
+        return count
+    end
+
+    task.spawn(function()
+        while task.wait(2) do
+            PotionsLabel:Set("Age Potions: " .. CountAgePotions())
+        end
+    end)
+
+    --------------------------------------------------------
+    -- EQUIPPED PET (Tracked via ASTRAL, not API)
+    --------------------------------------------------------
+    local EquippedLabel = tab:CreateLabel("Equipped Pet: None")
+
+    task.spawn(function()
+        while task.wait(1) do
+            local id = Core.EquippedPetID  -- ASTRAL sets this when equipping pets
+            if not id then
+                EquippedLabel:Set("Equipped Pet: None")
+                continue
+            end
+
+            local inv = API.GetPlayersInventory and API.GetPlayersInventory()
+            if not inv or not inv.pets then
+                EquippedLabel:Set("Equipped Pet: None")
+                continue
+            end
+
+            local pet = inv.pets[id]
+            if not pet then
+                EquippedLabel:Set("Equipped Pet: None")
+                continue
+            end
+
+            local props = pet.properties
+            local emoji = GetPetEmoji(props)
+            local age = GetAgeName(props)
+
+            EquippedLabel:Set(string.format(
+                "Equipped Pet: %s%s (%s)",
+                emoji,
+                pet.kind,
+                age
+            ))
+        end
+    end)
+
+    --------------------------------------------------------
+    -- ASTRAL sets this when equipping pets
+    --------------------------------------------------------
+    Core.SetEquippedPet = function(petId)
+        Core.EquippedPetID = petId
+    end
 end
 
 return Main
