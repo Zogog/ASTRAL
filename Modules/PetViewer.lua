@@ -69,7 +69,7 @@ function PetViewer.Init(Tabs, Core, UI)
 
             -- Extract UID from TBIGUI-style string
             -- Format: "index=kind: age -- ABC123"
-            local uid = option:match("%-%-%s*(%w+)$")
+            local uid = option:match("%-%-%s*(.+)$")
             if not uid then
                 warn("[PetViewer] Failed to extract UID from:", option)
                 return
@@ -218,7 +218,7 @@ function PetViewer.Init(Tabs, Core, UI)
                 index,
                 pet.kind,
                 GetAgeName(props),
-                pet.id:sub(1, 6)
+                pet.id
             )
 
             table.insert(display, label)
