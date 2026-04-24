@@ -1,6 +1,6 @@
 --========================================================--
 --                 ASTRAL.Modules.PetViewer
---     Fully Patched – TBIGUI Style – Full UID – v3
+--     TBIGUI-Style – Full UID – v4 (Stable)
 --========================================================--
 
 local PetViewer = {}
@@ -24,8 +24,8 @@ local NEON_AGES = {
 }
 
 local function GetAgeName(props)
-    local age = props.age or 1
-    if props.is_neon or props.is_mega_neon then
+    local age = props and props.age or 1
+    if props and (props.is_mega_neon or props.mega_neon or props.is_neon or props.neon) then
         return NEON_AGES[age] or "Unknown"
     end
     return NORMAL_AGES[age] or "Unknown"
@@ -36,26 +36,33 @@ function PetViewer.Init(Tabs, Core, UI)
     local tab = Tabs.Pets
 
     tab:CreateSection("Pet Viewer")
+
     local PetListLabel = tab:CreateLabel("Loading pets...", "paw-print")
 
+    -- create Details FIRST so it's never nil in callback
+    local Details = tab:CreateParagraph({
+        Title = "Pet Details",
+        Content = "Select a pet to view details.",
+    })
+
     --------------------------------------------------------
-    -- Dropdown (ALWAYS returns a table)
+    -- Dropdown (TBIGUI-style, full UID)
     --------------------------------------------------------
 
     local Dropdown = tab:CreateDropdown({
         Name = "Select Pet",
         Options = { "None" },
-        CurrentOption = { "None" }, -- TBIGUI uses table here
+        CurrentOption = { "None" },
         MultipleOptions = false,
 
         Callback = function(options)
-            -- Always treat as table
+            -- TBIGUI-style: always treat as table
             if type(options) ~= "table" then
                 return
             end
 
-            -- Extract first real string
-            local option = nil
+            -- get first string value
+            local option
             for _, v in pairs(options) do
                 if type(v) == "string" then
                     option = v
@@ -63,26 +70,38 @@ function PetViewer.Init(Tabs, Core, UI)
                 end
             end
 
-            if not option or option == "None" then return end
+            if not option or option == "None" then
+                return
+            end
 
-            -- Extract FULL UID
+            -- "index=kind: AgeName -- FULLUID"
             local uid = option:match("%-%-%s*(.+)$")
-            if not uid then return end
+            if not uid then
+                warn("[PetViewer] Failed to extract UID from:", option)
+                return
+            end
 
-            local pet = PetViewer.Map[uid]
-            if not pet then return end
+            local pet = PetViewer.Map and PetViewer.Map[uid]
+            if not pet then
+                warn("[PetViewer] No pet found for UID:", uid)
+                return
+            end
 
-            Details:Set({
-                Title = "Pet Details",
-                Content = string.format(
-                    "Kind: %s\nAge: %s\nID: %s",
-                    pet.kind,
-                    GetAgeName(pet.properties),
-                    pet.id
-                ),
-            })
+            PetViewer.Selected = pet
 
-            -- Equip
+            -- guard Details in case Rayfield fires super early
+            if Details and Details.Set then
+                Details:Set({
+                    Title = "Pet Details",
+                    Content = string.format(
+                        "Kind: %s\nAge: %s\nID: %s",
+                        pet.kind,
+                        GetAgeName(pet.properties),
+                        pet.id
+                    ),
+                })
+            end
+
             if API.EquipPet then
                 API.EquipPet(uid)
             elseif Core.SetEquippedPet then
@@ -91,9 +110,35 @@ function PetViewer.Init(Tabs, Core, UI)
         end,
     })
 
-    local Details = tab:CreateParagraph({
-        Title = "Pet Details",
-        Content = "Select a pet to view details.",
+    --------------------------------------------------------
+    -- Sorting
+    --------------------------------------------------------
+
+    local SortMode = "A-Z"
+
+    tab:CreateDropdown({
+        Name = "Sort By",
+        Options = { "A-Z", "Age", "Neon", "Mega" },
+        CurrentOption = "A-Z",
+        MultipleOptions = false,
+        Callback = function(opt)
+            SortMode = opt
+            PetViewer.Refresh()
+        end,
+    })
+
+    --------------------------------------------------------
+    -- Search
+    --------------------------------------------------------
+
+    tab:CreateInput({
+        Name = "Search Pets",
+        PlaceholderText = "Type a pet name...",
+        RemoveTextAfterFocusLost = false,
+        Callback = function(text)
+            PetViewer.SearchText = (text or ""):lower()
+            PetViewer.Refresh()
+        end,
     })
 
     --------------------------------------------------------
@@ -144,15 +189,36 @@ function PetViewer.Init(Tabs, Core, UI)
             end
         end
 
+        if SortMode == "A-Z" then
+            table.sort(list, function(a, b)
+                return a.kind < b.kind
+            end)
+        elseif SortMode == "Age" then
+            table.sort(list, function(a, b)
+                return (a.properties.age or 1) > (b.properties.age or 1)
+            end)
+        elseif SortMode == "Neon" then
+            table.sort(list, function(a, b)
+                local an = (a.properties.is_neon or a.properties.neon) and 1 or 0
+                local bn = (b.properties.is_neon or b.properties.neon) and 1 or 0
+                return an > bn
+            end)
+        elseif SortMode == "Mega" then
+            table.sort(list, function(a, b)
+                local am = (a.properties.is_mega_neon or a.properties.mega_neon) and 1 or 0
+                local bm = (b.properties.is_mega_neon or b.properties.mega_neon) and 1 or 0
+                return am > bm
+            end)
+        end
+
         local display = {}
 
         for index, pet in ipairs(list) do
-            local props = pet.properties
             local label = string.format(
                 "%d=%s: %s -- %s",
                 index,
                 pet.kind,
-                GetAgeName(props),
+                GetAgeName(pet.properties),
                 pet.id
             )
             table.insert(display, label)
