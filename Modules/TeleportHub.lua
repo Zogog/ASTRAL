@@ -5,10 +5,11 @@
 local TeleportHub = {}
 
 function TeleportHub.Init(Tabs, Core, UI)
-    local API = Core.AdoptMeAPI
+    local API      = Core.AdoptMeAPI
     local Teleport = Core.Teleport
 
-    local tab = Tabs.Teleports or Tabs.Utility or Tabs.Main
+    -- Choose the Teleports tab (your Tabs.lua defines it)
+    local tab = Tabs.Teleports
 
     tab:CreateSection("Teleport Hub")
 
