@@ -65,10 +65,10 @@ local function BuildPetTable(API)
     local inv = API.GetPlayersInventory().pets
     local pets = {}
 
-    for id, data in pairs(inv) do
+    for uid, data in pairs(inv) do
         if data.id ~= "practice_dog" then
             table.insert(pets, {
-                id = id,                -- unique pet instance ID
+                id = uid,               -- unique pet instance ID
                 kind = data.id,         -- pet type
                 properties = data.properties,
             })
@@ -131,7 +131,8 @@ function PetViewer.Init(Tabs, Core, UI)
             local emoji = GetPetEmoji(props)
             local ageName = GetAgeName(props)
 
-            local display = string.format("%s%s (%s)", emoji, pet.kind, ageName)
+            -- ⭐ UID added to dropdown entry
+            local display = string.format("%s%s (%s) — %s", emoji, pet.kind, ageName, pet.id)
 
             table.insert(options, display)
             PetLookup[display] = pet
@@ -145,12 +146,11 @@ function PetViewer.Init(Tabs, Core, UI)
                     local pet = PetLookup[selected]
                     if not pet then return end
 
-                    -- store like your old system did
                     PetViewer.SelectedPetId = pet.id
 
-                    -- try to equip immediately (same call as old version)
+                    -- Try to equip immediately
                     local ok, err = pcall(function()
-                        API.EquipPet(PetViewer.SelectedPetId)
+                        API.EquipPet(pet.id)
                     end)
 
                     Details:Set({
@@ -162,7 +162,7 @@ function PetViewer.Init(Tabs, Core, UI)
                             pet.id,
                             tostring(IsNeon(pet.properties)),
                             tostring(IsMega(pet.properties)),
-                            ok and "Success (or no error)" or ("Failed: " .. tostring(err))
+                            ok and "Success" or ("Failed: " .. tostring(err))
                         ),
                     })
                 end,
@@ -178,7 +178,7 @@ function PetViewer.Init(Tabs, Core, UI)
     RefreshPets()
 
     ------------------------------------------------------------
-    -- Equip Selected Pet button (same behaviour as your old version)
+    -- Equip Selected Pet button (fallback)
     ------------------------------------------------------------
     tab:CreateButton({
         Name = "Equip Selected Pet",
