@@ -1,6 +1,6 @@
 --========================================================--
 --                 ASTRAL.Modules.PetViewer
---        Final Working Version (UID Dropdown)
+--        TBIGUI-Style UID Dropdown (Final Version)
 --========================================================--
 
 local PetViewer = {}
@@ -33,8 +33,8 @@ local function GetAgeName(props)
 end
 
 local function GetEmoji(props)
-    if props.is_mega_neon then return "🌈 " end
-    if props.is_neon then return "✨ " end
+    if props.is_mega_neon then return "🌈" end
+    if props.is_neon then return "✨" end
     return ""
 end
 
@@ -51,25 +51,33 @@ function PetViewer.Init(Tabs, Core, UI)
     local PetListLabel = tab:CreateLabel("Loading pets...", "paw-print")
 
     --------------------------------------------------------
-    -- Dropdown (UID-based, equips directly)
+    -- Dropdown (TBIGUI-style string options)
     --------------------------------------------------------
 
     local Dropdown = tab:CreateDropdown({
         Name = "Select Pet",
         Options = {},
-        CurrentOption = "",
+        CurrentOption = { "None" },
         MultipleOptions = false,
 
         Callback = function(option)
-            -- Rayfield sometimes returns { "uid" }
+            -- Rayfield sometimes returns { "string" }
             if type(option) == "table" then
                 option = option[1]
             end
-            if not option then return end
+            if not option or option == "None" then return end
 
-            local pet = PetViewer.Map[option]
+            -- Extract UID from TBIGUI-style string
+            -- Format: "index=kind: age -- ABC123"
+            local uid = option:match("%-%-%s*(%w+)$")
+            if not uid then
+                warn("[PetViewer] Failed to extract UID from:", option)
+                return
+            end
+
+            local pet = PetViewer.Map[uid]
             if not pet then
-                warn("[PetViewer] No pet found for UID:", option)
+                warn("[PetViewer] No pet found for UID:", uid)
                 return
             end
 
@@ -85,13 +93,11 @@ function PetViewer.Init(Tabs, Core, UI)
                 ),
             })
 
-            -- Equip IMMEDIATELY (like the working version)
+            -- Equip immediately
             if API.EquipPet then
-                API.EquipPet(option)
+                API.EquipPet(uid)
             elseif Core.SetEquippedPet then
-                Core.SetEquippedPet(option)
-            else
-                warn("[PetViewer] No equip function available")
+                Core.SetEquippedPet(uid)
             end
         end,
     })
@@ -109,7 +115,7 @@ function PetViewer.Init(Tabs, Core, UI)
 
     tab:CreateDropdown({
         Name = "Sort By",
-        Options = {"A-Z", "Age", "Neon", "Mega"},
+        Options = { "A-Z", "Age", "Neon", "Mega" },
         CurrentOption = "A-Z",
         Callback = function(opt)
             SortMode = opt
@@ -132,7 +138,7 @@ function PetViewer.Init(Tabs, Core, UI)
     })
 
     --------------------------------------------------------
-    -- Load Pets
+    -- Load Pets (simple + stable)
     --------------------------------------------------------
 
     local function LoadPets()
@@ -145,16 +151,16 @@ function PetViewer.Init(Tabs, Core, UI)
         local pets = {}
         local map = {}
 
-        for id, data in pairs(inv.pets) do
+        for uid, data in pairs(inv.pets) do
             if data.id ~= "practice_dog" then
                 local pet = {
-                    id = id,
+                    id = uid,
                     kind = data.id,
                     properties = data.properties or {},
                 }
 
                 table.insert(pets, pet)
-                map[id] = pet
+                map[uid] = pet
             end
         end
 
@@ -165,7 +171,7 @@ function PetViewer.Init(Tabs, Core, UI)
     end
 
     --------------------------------------------------------
-    -- Refresh Logic
+    -- Refresh Logic (TBIGUI-style strings)
     --------------------------------------------------------
 
     function PetViewer.Refresh()
@@ -186,18 +192,15 @@ function PetViewer.Init(Tabs, Core, UI)
             table.sort(list, function(a, b)
                 return a.kind < b.kind
             end)
-
         elseif SortMode == "Age" then
             table.sort(list, function(a, b)
                 return (a.properties.age or 1) > (b.properties.age or 1)
             end)
-
         elseif SortMode == "Neon" then
             table.sort(list, function(a, b)
                 return (a.properties.is_neon and 1 or 0) >
                        (b.properties.is_neon and 1 or 0)
             end)
-
         elseif SortMode == "Mega" then
             table.sort(list, function(a, b)
                 return (a.properties.is_mega_neon and 1 or 0) >
@@ -205,22 +208,20 @@ function PetViewer.Init(Tabs, Core, UI)
             end)
         end
 
-        -- Build dropdown list (UID-based)
+        -- Build TBIGUI-style dropdown list
         local display = {}
 
-        for _, pet in ipairs(list) do
+        for index, pet in ipairs(list) do
             local props = pet.properties
             local label = string.format(
-                "%s%s (%s)",
-                GetEmoji(props),
+                "%d=%s: %s -- %s",
+                index,
                 pet.kind,
-                GetAgeName(props)
+                GetAgeName(props),
+                pet.id:sub(1, 6)
             )
 
-            table.insert(display, {
-                Name = label,
-                Value = pet.id, -- UID returned
-            })
+            table.insert(display, label)
         end
 
         Dropdown:Refresh(display)
