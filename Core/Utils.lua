@@ -10,18 +10,38 @@ function Utils.Normalize(str)
 end
 
 function Utils.NaturalSort(a, b)
-    local function pad(n) return ("%09d"):format(tonumber(n) or 0) end
+    local function pad(n)
+        return ("%09d"):format(tonumber(n) or 0)
+    end
+
     a = tostring(a):gsub("(%d+)", pad)
     b = tostring(b):gsub("(%d+)", pad)
     return a < b
 end
 
 function Utils.FirstSix(str)
-    return string.sub(str, 1, 6)
+    if not str then return "" end
+    return string.sub(tostring(str), 1, 6)
 end
 
 function Utils.IsLetters(str)
-    return str:match("^[A-Za-z]+$") ~= nil
+    if not str then return false end
+    return tostring(str):match("^[A-Za-z]+$") ~= nil
+end
+
+-- "12=dog: 3 -- abc" → 12
+function Utils.NumberBeforeEqual(str)
+    if not str then return nil end
+    local num = tostring(str):match("^(%d+)")
+    return num and tonumber(num) or nil
+end
+
+-- Generic table emptiness check
+function Utils.IsEmpty(t)
+    if type(t) ~= "table" then
+        return true
+    end
+    return next(t) == nil
 end
 
 return Utils
