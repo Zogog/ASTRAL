@@ -10,8 +10,8 @@ local function import(path)
 end
 
 local ASTRAL = {
-    Core = {},
-    UI = {},
+    Core    = {},
+    UI      = {},
     Modules = {},
 }
 
@@ -20,12 +20,12 @@ local ASTRAL = {
 --========================================================--
 
 ASTRAL.Core.AdoptMeAPI = import("Core/AdoptMeAPI.lua")
-ASTRAL.Core.Utils       = import("Core/Utils.lua")
-ASTRAL.Core.Pets        = import("Core/Pets.lua")
-ASTRAL.Core.Teleport    = import("Core/Teleport.lua")
-ASTRAL.Core.Ailments    = import("Core/Ailments.lua")
-ASTRAL.Core.Inventory   = import("Core/Inventory.lua")
-ASTRAL.Core.Movement    = import("Core/Movement.lua")
+ASTRAL.Core.Utils      = import("Core/Utils.lua")
+ASTRAL.Core.Pets       = import("Core/Pets.lua")
+ASTRAL.Core.Teleport   = import("Core/Teleport.lua")
+ASTRAL.Core.Ailments   = import("Core/Ailments.lua")
+ASTRAL.Core.Inventory  = import("Core/Inventory.lua")
+ASTRAL.Core.Movement   = import("Core/Movement.lua")
 
 --========================================================--
 --                 UI MODULES
@@ -36,7 +36,7 @@ ASTRAL.UI.Tabs         = import("UI/Tabs.lua")
 ASTRAL.UI.Dropdowns    = import("UI/Dropdowns.lua")
 ASTRAL.UI.Settings     = import("UI/Settings.lua")
 
--- Inject Core dependencies into UI modules
+-- Inject Core into UI that needs Utils, etc.
 if ASTRAL.UI.Dropdowns.SetDependencies then
     ASTRAL.UI.Dropdowns.SetDependencies(ASTRAL.Core)
 end
@@ -58,10 +58,10 @@ ASTRAL.Modules.Webhooks    = import("Modules/Webhooks.lua")
 --========================================================--
 
 local Window = ASTRAL.UI.RayfieldInit.Init()
-local Tabs = ASTRAL.UI.Tabs.Create(Window)
+local Tabs   = ASTRAL.UI.Tabs.Create(Window)
 
--- Only modules need Init()
-for _, folder in pairs({ASTRAL.Modules}) do
+-- Only feature modules need Init()
+for _, folder in pairs({ ASTRAL.Modules }) do
     for name, module in pairs(folder) do
         if type(module) == "table" and module.Init then
             task.spawn(function()
