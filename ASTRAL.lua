@@ -1,6 +1,6 @@
 --========================================================--
 --                     A S T R A L
---            Cleaned Loader (No BabyFarm / No Debug)
+--        Cleaned Loader + PetViewer Included
 --========================================================--
 
 local ASTRAL = {}
@@ -64,6 +64,7 @@ local Tabs = {}
 Tabs.Main       = ASTRAL.UI.Window:CreateTab("Main", "home")
 Tabs.Autofarm   = ASTRAL.UI.Window:CreateTab("Autofarm", "zap")
 Tabs.Teleports  = ASTRAL.UI.Window:CreateTab("Teleports", "map")
+Tabs.Pets       = ASTRAL.UI.Window:CreateTab("Pets", "paw-print") -- PetViewer tab
 
 ASTRAL.Tabs = Tabs
 
@@ -73,8 +74,8 @@ ASTRAL.Tabs = Tabs
 
 ASTRAL.Modules.Main        = safeImport("Modules/Main.lua")
 ASTRAL.Modules.AutoNeeds   = safeImport("Modules/AutoNeeds.lua")
-ASTRAL.Modules.PetViewer = safeImport("Modules/PetViewer.lua")
 ASTRAL.Modules.TeleportHub = safeImport("Modules/TeleportHub.lua")
+ASTRAL.Modules.PetViewer   = safeImport("Modules/PetViewer.lua")
 
 -- BabyFarm removed
 -- InventoryDebug removed
@@ -100,13 +101,13 @@ end
 
 initModule("Main",        ASTRAL.Modules.Main)
 initModule("AutoNeeds",   ASTRAL.Modules.AutoNeeds)
-initModule("PetViewer", ASTRAL.Modules.PetViewer)
 initModule("TeleportHub", ASTRAL.Modules.TeleportHub)
+initModule("PetViewer",   ASTRAL.Modules.PetViewer)
 
 --========================================================--
 -- Final Message
 --========================================================--
 
-print("ASTRAL Framework Loaded Successfully (Clean Edition)")
+print("ASTRAL Framework Loaded Successfully (Clean Edition + PetViewer)")
 
 return ASTRAL
