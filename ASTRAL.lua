@@ -102,9 +102,10 @@ local function initModule(name, module)
 end
 
 initModule("Main",        ASTRAL.Modules.Main)
-initModule("AutoNeeds",   ASTRAL.Modules.AutoNeeds)
-initModule("TeleportHub", ASTRAL.Modules.TeleportHub)
+--initModule("AutoNeeds",   ASTRAL.Modules.AutoNeeds)
+--initModule("TeleportHub", ASTRAL.Modules.TeleportHub)
 initModule("PetViewer",   ASTRAL.Modules.PetViewer)
+initModule("Extras",      ASTRAL.Modules.Extras)
 
 --========================================================--
 -- Final Message
