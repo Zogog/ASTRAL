@@ -3,21 +3,11 @@
 --      Centralized teleport routing for all modules
 --========================================================--
 
-local Utils = require(script.Parent.Utils)
-
 local Teleport = {}
 
 --========================================================--
 --                 TELEPORT ROUTE MAP
 --========================================================--
-
--- These names match your AdoptMeAPI backend functions:
---   API.GoToMainMap()
---   API.GoToNeighborhood()
---   API.GoToHome()
---   API.GoToStore("Nursery")
---   API.GoToStore("School")
---   etc.
 
 Teleport.Routes = {
     -- Main world teleports
@@ -41,7 +31,8 @@ Teleport.Routes = {
 --========================================================--
 
 local function normalize(str)
-    return Utils.Normalize(str)
+    if not str then return "" end
+    return string.lower(tostring(str))
 end
 
 --========================================================--
@@ -98,9 +89,6 @@ end
 --========================================================--
 --                 AILMENT TELEPORT ROUTING
 --========================================================--
-
--- This is used by AutoNeeds, BabyFarm, AutoEggs, etc.
--- It converts an ailment category into a teleport route.
 
 Teleport.AilmentRoutes = {
     Home     = "Home",
