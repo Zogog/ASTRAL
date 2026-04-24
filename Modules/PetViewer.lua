@@ -1,6 +1,6 @@
 --========================================================--
 --                 ASTRAL.Modules.PetViewer
---        Restored Version (Dropdown Equips Directly)
+--        Final Working Version (UID Dropdown)
 --========================================================--
 
 local PetViewer = {}
@@ -59,11 +59,19 @@ function PetViewer.Init(Tabs, Core, UI)
         Options = {},
         CurrentOption = "",
         MultipleOptions = false,
-        Callback = function(petId)
-            if not petId then return end
 
-            local pet = PetViewer.Map[petId]
-            if not pet then return end
+        Callback = function(option)
+            -- Rayfield sometimes returns { "uid" }
+            if type(option) == "table" then
+                option = option[1]
+            end
+            if not option then return end
+
+            local pet = PetViewer.Map[option]
+            if not pet then
+                warn("[PetViewer] No pet found for UID:", option)
+                return
+            end
 
             PetViewer.Selected = pet
 
@@ -77,9 +85,13 @@ function PetViewer.Init(Tabs, Core, UI)
                 ),
             })
 
-            -- Equip IMMEDIATELY (like before)
-            if Core.SetEquippedPet then
-                Core.SetEquippedPet(pet.id)
+            -- Equip IMMEDIATELY (like the working version)
+            if API.EquipPet then
+                API.EquipPet(option)
+            elseif Core.SetEquippedPet then
+                Core.SetEquippedPet(option)
+            else
+                warn("[PetViewer] No equip function available")
             end
         end,
     })
@@ -205,10 +217,9 @@ function PetViewer.Init(Tabs, Core, UI)
                 GetAgeName(props)
             )
 
-            -- Dropdown shows label but returns UID
             table.insert(display, {
                 Name = label,
-                Value = pet.id,
+                Value = pet.id, -- UID returned
             })
         end
 
