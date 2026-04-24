@@ -4,6 +4,7 @@
 
 local PetViewer = {}
 
+-- Build a clean pet table from inventory
 local function BuildPetTable(API)
     local inv = API.GetPlayersInventory().pets
     local pets = {}
@@ -18,135 +19,98 @@ local function BuildPetTable(API)
         end
     end
 
+    table.sort(pets, function(a, b)
+        return a.kind:lower() < b.kind:lower()
+    end)
+
     return pets
 end
 
 function PetViewer.Init(Tabs, Core, UI)
     local API = Core.AdoptMeAPI
     local Utils = Core.Utils
-    local Dropdowns = UI.Dropdowns
 
     local tab = Tabs.Pets
-
     tab:CreateSection("Pet Viewer")
 
-    local PetListLabel = tab:CreateLabel("Loading pets...", "paw-print")
+    local PetCountLabel = tab:CreateLabel("Loading pets...")
 
-    local PetList = tab:CreateParagraph({
-        Title = "Your Pets",
-        Content = "Loading...",
-    })
+    -- Dropdown reference
+    local PetDropdown = nil
 
+    -- Details panel
     local Details = tab:CreateParagraph({
         Title = "Pet Details",
-        Content = "Select a pet to view details.",
+        Content = "Select a pet from the dropdown.",
     })
 
-    tab:CreateButton({
-        Name = "Equip Selected Pet",
-        Callback = function()
-            if PetViewer.SelectedPetId then
-                API.EquipPet(PetViewer.SelectedPetId)
-            end
-        end,
-    })
+    -- Lookup table: name → pet data
+    local PetLookup = {}
 
+    ------------------------------------------------------------
+    -- Refresh function (rebuilds dropdown)
+    ------------------------------------------------------------
     local function RefreshPets()
         local pets = BuildPetTable(API)
 
         if #pets == 0 then
-            PetListLabel:Set("You have no pets.")
-            PetList:Set({
-                Title = "Your Pets",
-                Content = "No pets found.",
-            })
+            PetCountLabel:Set("You have no pets.")
+            if PetDropdown then
+                PetDropdown:Set({ Options = {} })
+            end
             return
         end
 
-        PetListLabel:Set("You have " .. #pets .. " pets")
+        PetCountLabel:Set("You have " .. #pets .. " pets")
 
-        local list = Dropdowns.BuildPetList(pets)
-        local map = Dropdowns.BuildPetDataMap(pets)
+        -- Build dropdown options
+        local options = {}
+        PetLookup = {}
 
-        local display = {}
-        for _, item in ipairs(list) do
-            table.insert(display, item)
+        for _, pet in ipairs(pets) do
+            local display = string.format("%s (Age %d)", pet.kind, pet.age)
+            table.insert(options, display)
+            PetLookup[display] = pet
         end
 
-        PetList:Set({
-            Title = "Your Pets",
-            Content = table.concat(display, "\n"),
-        })
+        -- Create dropdown if not created yet
+        if not PetDropdown then
+            PetDropdown = tab:CreateDropdown({
+                Name = "Select a Pet",
+                Options = options,
+                Callback = function(selected)
+                    local pet = PetLookup[selected]
+                    if not pet then return end
 
-        PetViewer.PetList = list
-        PetViewer.PetMap = map
+                    -- Equip instantly
+                    API.EquipPet(pet.id)
+
+                    -- Update details panel
+                    Details:Set({
+                        Title = "Pet Details",
+                        Content = string.format(
+                            "Kind: %s\nAge: %d\nID: %s\n\nEquipped!",
+                            pet.kind,
+                            pet.age,
+                            pet.id
+                        ),
+                    })
+                end,
+            })
+        else
+            -- Update existing dropdown
+            PetDropdown:Set({ Options = options })
+        end
     end
 
+    ------------------------------------------------------------
+    -- Initial load
+    ------------------------------------------------------------
     RefreshPets()
 
-    tab:CreateInput({
-        Name = "Search Pets",
-        PlaceholderText = "Type a pet name...",
-        RemoveTextAfterFocusLost = false,
-        Callback = function(text)
-            if not PetViewer.PetList then return end
-
-            if not Utils.IsLetters(text) and text ~= "" then
-                PetList:Set({
-                    Title = "Your Pets",
-                    Content = "Search must contain letters only.",
-                })
-                return
-            end
-
-            local filtered = Dropdowns.Filter(PetViewer.PetList, text)
-
-            if #filtered == 0 then
-                PetList:Set({
-                    Title = "Your Pets",
-                    Content = "No pets match your search.",
-                })
-                return
-            end
-
-            PetList:Set({
-                Title = "Your Pets",
-                Content = table.concat(filtered, "\n"),
-            })
-        end,
-    })
-
-    tab:CreateInput({
-        Name = "Select Pet (Enter Index)",
-        PlaceholderText = "Example: 1",
-        RemoveTextAfterFocusLost = true,
-        Callback = function(text)
-            local index = tonumber(text)
-            if not index then return end
-
-            if not PetViewer.PetMap or not PetViewer.PetMap[index] then
-                Details:Set({
-                    Title = "Pet Details",
-                    Content = "Invalid pet index.",
-                })
-                return
-            end
-
-            local pet = PetViewer.PetMap[index]
-            PetViewer.SelectedPetId = pet.id
-
-            Details:Set({
-                Title = "Pet Details",
-                Content = string.format(
-                    "Kind: %s\nAge: %d\nID: %s",
-                    pet.kind,
-                    pet.age,
-                    pet.id
-                ),
-            })
-        end,
-    })
-
+    ------------------------------------------------------------
+    -- Refresh button
+    ------------------------------------------------------------
     tab:CreateButton({
         Name = "Refresh Pet List",
         Callback = function()
