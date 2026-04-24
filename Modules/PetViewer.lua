@@ -132,39 +132,37 @@ function PetViewer.Init(Tabs, Core, UI)
     })
 
     --------------------------------------------------------
-    -- Load Pets (with wait loop)
+    -- Load Pets
     --------------------------------------------------------
 
     local function LoadPets()
-    local inv = API.GetPlayersInventory()
-    print("[PetViewer] inv =", inv, "inv.pets =", inv and inv.pets)
-    if not inv or not inv.pets then
-        PetListLabel:Set("No pets found.")
-        return
-    end
-
-    local pets = {}
-    local map = {}
-
-    for uid, data in pairs(inv.pets) do
-        if data.id ~= "practice_dog" then
-            local pet = {
-                id = uid,
-                kind = data.id,
-                properties = data.properties or {},
-            }
-
-            table.insert(pets, pet)
-            map[uid] = pet
+        local inv = API.GetPlayersInventory()
+        if not inv or not inv.pets then
+            PetListLabel:Set("No pets found.")
+            return
         end
+
+        local pets = {}
+        local map = {}
+
+        for id, data in pairs(inv.pets) do
+            if data.id ~= "practice_dog" then
+                local pet = {
+                    id = id,
+                    kind = data.id,
+                    properties = data.properties or {},
+                }
+
+                table.insert(pets, pet)
+                map[id] = pet
+            end
+        end
+
+        PetViewer.All = pets
+        PetViewer.Map = map
+
+        PetViewer.Refresh()
     end
-
-    PetViewer.All = pets
-    PetViewer.Map = map
-
-    PetViewer.Refresh()
-end
-
 
     --------------------------------------------------------
     -- Refresh Logic
