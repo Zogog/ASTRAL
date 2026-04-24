@@ -1,8 +1,16 @@
 --========================================================--
 --                 ASTRAL.Modules.AutoNeeds
+--      Advanced v2 — Dual Pets, Eggs, Baby, Movement
 --========================================================--
 
 local AutoNeeds = {}
+
+local Settings
+local Utils
+
+--========================================================--
+--                 INTERNAL STATE
+--========================================================--
 
 local running = false
 
@@ -13,20 +21,31 @@ local Selected = {
 }
 
 local DisabledAilments = {}
-local MovementMode = "Idle"
+local MovementMode = "Idle" -- Idle / Platform / Circle
+
+--========================================================--
+--                 LOGGING
+--========================================================--
 
 local function Log(msg)
     print("[ASTRAL AutoNeeds] " .. msg)
 end
 
-local function WaitTick(Settings)
+local function WaitTick()
     task.wait(Settings.GetTickDelay())
 end
 
-local function DoMovement(mode)
-    if mode == "Idle" then return end
+--========================================================--
+--                 MOVEMENT SYSTEM
+--========================================================--
 
-    local root = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+local function DoMovement(mode)
+    if mode == "Idle" then
+        return
+    end
+
+    local root = game.Players.LocalPlayer.Character
+        and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
     if mode == "Platform" then
@@ -37,6 +56,10 @@ local function DoMovement(mode)
     end
 end
 
+--========================================================--
+--                 PET SWITCHING
+--========================================================--
+
 local function SwitchIfFullGrown(API, petUnique)
     local cfg = API.GetPlayersPetConfigs(petUnique)
     if cfg.petAge < 6 then return petUnique end
@@ -44,11 +67,18 @@ local function SwitchIfFullGrown(API, petUnique)
     Log("Pet full grown — switching")
 
     local nextPet = API.GetSameKind(Selected.Pet1, Selected.Pet2, cfg.petKind)
-    if nextPet then return nextPet end
+    if nextPet then
+        Log("Switching to same kind: " .. nextPet)
+        return nextPet
+    end
 
     local randomPet = API.GetRandomKind(petUnique)
-    if randomPet then return randomPet end
+    if randomPet then
+        Log("Switching to random pet of same type")
+        return randomPet
+    end
 
+    Log("No replacement pet found")
     return petUnique
 end
 
@@ -57,36 +87,82 @@ local function SwitchIfEggHatched(API, petUnique)
         return petUnique
     end
 
-    if API.IsEggNotThere(petUnique) then
+    if API.IsEggNotThere and API.IsEggNotThere(petUnique) then
+        Log("Egg hatched — switching")
         return API.GetRandomKind(petUnique)
     end
 
     return petUnique
 end
 
+--========================================================--
+--                 AILMENT SOLVING
+--========================================================--
+
 local function SolveAilment(API, ailment)
     ailment = ailment:lower()
 
-    if ailment == "hungry" or ailment == "thirsty" or ailment == "sleepy" or ailment == "dirty" then
+    if ailment == "hungry" or ailment == "thirsty" then
         API.GoToHome()
+        WaitTick()
         return
     end
 
-    if ailment == "school" then API.GoToStore("School") return end
-    if ailment == "hospital" then API.GoToStore("Hospital") return end
-    if ailment == "salon" then API.GoToStore("Salon") return end
+    if ailment == "sleepy" then
+        API.GoToHome()
+        WaitTick()
+        return
+    end
+
+    if ailment == "dirty" then
+        API.GoToHome()
+        WaitTick()
+        return
+    end
+
+    if ailment == "school" then
+        API.GoToStore("School")
+        WaitTick()
+        return
+    end
+
+    if ailment == "hospital" then
+        API.GoToStore("Hospital")
+        WaitTick()
+        return
+    end
+
+    if ailment == "salon" then
+        API.GoToStore("Salon")
+        WaitTick()
+        return
+    end
+
+    Log("Unknown ailment: " .. ailment)
 end
 
 local function SolveAll(API, ailments)
-    for ailment in pairs(ailments.FirstPet) do SolveAilment(API, ailment) end
-    for ailment in pairs(ailments.SecondPet) do SolveAilment(API, ailment) end
-    for ailment in pairs(ailments.Baby) do SolveAilment(API, ailment) end
+    for ailment in pairs(ailments.FirstPet) do
+        SolveAilment(API, ailment)
+        WaitTick()
+    end
+
+    for ailment in pairs(ailments.SecondPet) do
+        SolveAilment(API, ailment)
+        WaitTick()
+    end
+
+    for ailment in pairs(ailments.Baby) do
+        SolveAilment(API, ailment)
+        WaitTick()
+    end
 end
 
-local function StartLoop(API, Core, UI)
-    local Settings = UI.Settings
-    local Utils = Core.Utils
+--========================================================--
+--                 MAIN LOOP
+--========================================================--
 
+local function StartLoop(API)
     running = true
     Log("AutoNeeds Advanced v2 started")
 
@@ -115,8 +191,15 @@ local function StartLoop(API, Core, UI)
             if v.unique == Selected.Pet2 then has2 = true end
         end
 
-        if not has1 then API.EquipPet(Selected.Pet1) WaitTick(Settings) end
-        if Selected.Pet2 and not has2 then API.EquipPet(Selected.Pet2) WaitTick(Settings) end
+        if not has1 then
+            API.EquipPet(Selected.Pet1)
+            WaitTick()
+        end
+
+        if Selected.Pet2 and not has2 then
+            API.EquipPet(Selected.Pet2)
+            WaitTick()
+        end
 
         local ailments = API.GetAilments(
             Selected.Pet1,
@@ -138,11 +221,15 @@ local function StartLoop(API, Core, UI)
     Log("AutoNeeds stopped")
 end
 
-function AutoNeeds.Init(Tabs, Core, UI)
-    local API = Core.AdoptMeAPI
-    local Utils = Core.Utils
-    local Settings = UI.Settings
+--========================================================--
+--                 UI CREATION
+--========================================================--
 
+function AutoNeeds.Init(Tabs, Core, UI)
+    Settings = UI.Settings
+    Utils    = Core.Utils
+
+    local API = Core.AdoptMeAPI
     local tab = Tabs.Autofarm
 
     tab:CreateSection("Auto Needs — Advanced v2")
@@ -152,7 +239,7 @@ function AutoNeeds.Init(Tabs, Core, UI)
         CurrentValue = false,
         Callback = function(state)
             if state then
-                task.spawn(StartLoop, API, Core, UI)
+                task.spawn(StartLoop, API)
             else
                 running = false
             end
