@@ -58,34 +58,6 @@ local function GetPetEmoji(props)
 end
 
 --========================================================--
--- UNIVERSAL EQUIP WRAPPER
---========================================================--
-
-local function TryEquip(API, pet)
-    local id = pet.id
-    local kind = pet.kind
-
-    local attempts = {
-        function() return API.EquipPet(id) end,
-        function() return API.EquipPet(kind) end,
-        function() return API.EquipPet(id, true) end,
-        function() return API.EquipPet(id, false) end,
-        function() return API.EquipPet({ id = id }) end,
-        function() return API.EquipPet({ unique = id }) end,
-    }
-
-    for _, attempt in ipairs(attempts) do
-        local ok = pcall(attempt)
-        if ok then
-            return true
-        end
-    end
-
-    warn("[ASTRAL PetViewer] EquipPet failed for:", id, kind)
-    return false
-end
-
---========================================================--
 -- BUILD PET TABLE
 --========================================================--
 
@@ -97,7 +69,7 @@ local function BuildPetTable(API)
         if data.id ~= "practice_dog" then
             table.insert(pets, {
                 id = id,                -- unique pet instance ID
-                kind = data.id,         -- pet type (shadow_dragon, neon_dog, etc.)
+                kind = data.id,         -- pet type
                 properties = data.properties,
             })
         end
@@ -125,6 +97,8 @@ function PetViewer.Init(Tabs, Core, UI)
     local PetDropdown = nil
     local PetLookup = {}
 
+    PetViewer.SelectedPetId = nil
+
     local Details = tab:CreateParagraph({
         Title = "Pet Details",
         Content = "Select a pet from the dropdown.",
@@ -139,6 +113,11 @@ function PetViewer.Init(Tabs, Core, UI)
         if #pets == 0 then
             PetCountLabel:Set("You have no pets.")
             if PetDropdown then PetDropdown:Set({ Options = {} }) end
+            PetViewer.SelectedPetId = nil
+            Details:Set({
+                Title = "Pet Details",
+                Content = "No pets found.",
+            })
             return
         end
 
@@ -166,17 +145,24 @@ function PetViewer.Init(Tabs, Core, UI)
                     local pet = PetLookup[selected]
                     if not pet then return end
 
-                    TryEquip(API, pet)
+                    -- store like your old system did
+                    PetViewer.SelectedPetId = pet.id
+
+                    -- try to equip immediately (same call as old version)
+                    local ok, err = pcall(function()
+                        API.EquipPet(PetViewer.SelectedPetId)
+                    end)
 
                     Details:Set({
                         Title = "Pet Details",
                         Content = string.format(
-                            "Kind: %s\nAge: %s\nID: %s\nNeon: %s\nMega: %s\n\nEquipped!",
+                            "Kind: %s\nAge: %s\nID: %s\nNeon: %s\nMega: %s\n\nEquip: %s",
                             pet.kind,
                             GetAgeName(pet.properties),
                             pet.id,
                             tostring(IsNeon(pet.properties)),
-                            tostring(IsMega(pet.properties))
+                            tostring(IsMega(pet.properties)),
+                            ok and "Success (or no error)" or ("Failed: " .. tostring(err))
                         ),
                     })
                 end,
@@ -190,6 +176,33 @@ function PetViewer.Init(Tabs, Core, UI)
     -- Initial load
     ------------------------------------------------------------
     RefreshPets()
+
+    ------------------------------------------------------------
+    -- Equip Selected Pet button (same behaviour as your old version)
+    ------------------------------------------------------------
+    tab:CreateButton({
+        Name = "Equip Selected Pet",
+        Callback = function()
+            if not PetViewer.SelectedPetId then
+                Details:Set({
+                    Title = "Pet Details",
+                    Content = "No pet selected.",
+                })
+                return
+            end
+
+            local ok, err = pcall(function()
+                API.EquipPet(PetViewer.SelectedPetId)
+            end)
+
+            Details:Set({
+                Title = "Pet Details",
+                Content = ok and
+                    ("Equipped pet ID: " .. PetViewer.SelectedPetId) or
+                    ("Failed to equip: " .. tostring(err)),
+            })
+        end,
+    })
 
     ------------------------------------------------------------
     -- Refresh button
