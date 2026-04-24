@@ -1,162 +1,110 @@
 --========================================================--
---                  A S T R A L   H U B
---                SafeMode + Crash Protection
+--                     A S T R A L
+--            Cleaned Loader (No BabyFarm / No Debug)
 --========================================================--
 
-warn("ASTRAL GITHUB VERSION LOADED (SafeMode Enabled)")
+local ASTRAL = {}
+ASTRAL.Core = {}
+ASTRAL.Modules = {}
 
-local REPO = "https://raw.githubusercontent.com/Zogog/ASTRAL/main/"
-
--- Track which modules have already thrown errors (prevents spam)
-getgenv().ASTRAL_SILENCE = getgenv().ASTRAL_SILENCE or {}
+--========================================================--
+-- Safe Import
+--========================================================--
 
 local function safeImport(path)
-    local url = REPO .. path
-
-    -- Step 1: Download
-    local okHttp, code = pcall(function()
-        return game:HttpGet(url)
+    local ok, result = pcall(function()
+        return loadstring(game:HttpGet(ASTRAL.REPO .. path))()
     end)
 
-    if not okHttp then
-        warn("[ASTRAL SafeMode] Failed to download:", path, code)
+    if not ok then
+        warn("[ASTRAL SafeMode] Failed to load module:", path)
+        warn("Error:", result)
         return nil
     end
 
-    -- Step 2: Compile
-    local fn, err = loadstring(code)
-    if not fn then
-        warn("[ASTRAL SafeMode] loadstring failed:", path, err)
-        return nil
-    end
-
-    -- Step 3: Execute
-    local okRun, module = pcall(fn)
-    if not okRun then
-        warn("[ASTRAL SafeMode] Module runtime error:", path, module)
-        return nil
-    end
-
-    -- Step 4: Validate
-    if type(module) ~= "table" then
-        warn("[ASTRAL SafeMode] Module returned non-table:", path)
-        return nil
-    end
-
-    print("[ASTRAL] Loaded:", path)
-    return module
+    return result
 end
 
-local ASTRAL = {
-    Core    = {},
-    UI      = {},
-    Modules = {},
-    SafeMode = true,
-}
+--========================================================--
+-- Repo Root
+--========================================================--
+
+ASTRAL.REPO = "https://raw.githubusercontent.com/Zogog/ASTRAL/main/"
 
 --========================================================--
---                 CORE MODULES
+-- Load Core Modules (Only Supported Ones)
 --========================================================--
 
 ASTRAL.Core.AdoptMeAPI = safeImport("Core/AdoptMeAPI.lua")
-ASTRAL.Core.Utils      = safeImport("Core/Utils.lua")
-ASTRAL.Core.Pets       = safeImport("Core/Pets.lua")
-ASTRAL.Core.Teleport   = safeImport("Core/Teleport.lua")
-ASTRAL.Core.Ailments   = safeImport("Core/Ailments.lua")
-ASTRAL.Core.Inventory  = safeImport("Core/Inventory.lua")
 ASTRAL.Core.Movement   = safeImport("Core/Movement.lua")
+ASTRAL.Core.Ailments   = safeImport("Core/Ailments.lua")
+ASTRAL.Core.Pets       = safeImport("Core/Pets.lua")
 
 --========================================================--
---                 UI MODULES
+-- Load UI Framework
 --========================================================--
 
-ASTRAL.UI.RayfieldInit = safeImport("UI/RayfieldInit.lua")
-ASTRAL.UI.Tabs         = safeImport("UI/Tabs.lua")
-ASTRAL.UI.Dropdowns    = safeImport("UI/Dropdowns.lua")
-ASTRAL.UI.Settings     = safeImport("UI/Settings.lua")
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
--- Inject Core into UI that needs Utils, etc.
-if ASTRAL.UI.Dropdowns and ASTRAL.UI.Dropdowns.SetDependencies then
-    ASTRAL.UI.Dropdowns.SetDependencies(ASTRAL.Core)
-end
+ASTRAL.UI = {}
+ASTRAL.UI.Window = Rayfield:CreateWindow({
+    Name = "ASTRAL Hub",
+    Icon = 116531676650470,
+    LoadingTitle = "ASTRAL Framework",
+    LoadingSubtitle = "Initializing...",
+    Theme = "Default",
+    DisableRayfieldPrompts = true,
+})
 
 --========================================================--
---                 FEATURE MODULES
+-- Create Tabs
+--========================================================--
+
+local Tabs = {}
+Tabs.Main       = ASTRAL.UI.Window:CreateTab("Main", "home")
+Tabs.Autofarm   = ASTRAL.UI.Window:CreateTab("Autofarm", "zap")
+Tabs.Teleports  = ASTRAL.UI.Window:CreateTab("Teleports", "map")
+
+ASTRAL.Tabs = Tabs
+
+--========================================================--
+-- Load Modules (Only Supported Ones)
 --========================================================--
 
 ASTRAL.Modules.Main        = safeImport("Modules/Main.lua")
-ASTRAL.Modules.PetViewer   = safeImport("Modules/PetViewer.lua")
-ASTRAL.Modules.TeleportHub = safeImport("Modules/TeleportHub.lua")
 ASTRAL.Modules.AutoNeeds   = safeImport("Modules/AutoNeeds.lua")
-ASTRAL.Modules.AutoPotions = safeImport("Modules/AutoPotions.lua")
-ASTRAL.Modules.AutoEggs    = safeImport("Modules/AutoEggs.lua")
-ASTRAL.Modules.BabyFarm    = safeImport("Modules/BabyFarm.lua")
-ASTRAL.Modules.Webhooks    = safeImport("Modules/Webhooks.lua")
+ASTRAL.Modules.TeleportHub = safeImport("Modules/TeleportHub.lua")
 
-ASTRAL.Modules.InventoryDebug = safeImport("Modules/InventoryDebug.lua")
+-- BabyFarm removed
+-- InventoryDebug removed
 
 --========================================================--
---                 ASTRAL INITIALIZATION
+-- Initialize Modules
 --========================================================--
 
-local Window
-local Tabs
+local function initModule(name, module)
+    if not module then return end
 
-if ASTRAL.UI.RayfieldInit and ASTRAL.UI.RayfieldInit.Init then
-    local ok, result = pcall(ASTRAL.UI.RayfieldInit.Init)
+    local ok, err = pcall(function()
+        module.Init(Tabs, ASTRAL.Core, ASTRAL.UI)
+    end)
+
     if ok then
-        Window = result
+        print("[ASTRAL] Module initialized:", name)
     else
-        warn("[ASTRAL SafeMode] Failed to initialize Rayfield:", result)
+        warn("⚠️ [ASTRAL SafeMode] Init failed for module:", name)
+        warn("Error:", err)
     end
 end
 
-if ASTRAL.UI.Tabs and ASTRAL.UI.Tabs.Create then
-    local ok, result = pcall(ASTRAL.UI.Tabs.Create, Window)
-    if ok then
-        Tabs = result
-    else
-        warn("[ASTRAL SafeMode] Failed to create Tabs:", result)
-    end
-end
+initModule("Main",        ASTRAL.Modules.Main)
+initModule("AutoNeeds",   ASTRAL.Modules.AutoNeeds)
+initModule("TeleportHub", ASTRAL.Modules.TeleportHub)
 
 --========================================================--
---                 MODULE INIT (SPAM-SAFE)
+-- Final Message
 --========================================================--
 
-for name, module in pairs(ASTRAL.Modules) do
-    if type(module) == "table" and module.Init then
-        task.spawn(function()
-            local ok, err = pcall(module.Init, Tabs, ASTRAL.Core, ASTRAL.UI)
-
-            if not ok then
-                -- Prevent console spam
-                if not getgenv().ASTRAL_SILENCE[name] then
-                    warn("[ASTRAL SafeMode] Init failed for module:", name)
-                    warn("Error:", err)
-                    getgenv().ASTRAL_SILENCE[name] = true
-                end
-            else
-                print("[ASTRAL] Module initialized:", name)
-            end
-        end)
-    else
-        if module == nil then
-            warn("[ASTRAL SafeMode] Skipping missing module:", name)
-        end
-    end
-end
-
-if ASTRAL.Modules.InventoryDebug then
-    ASTRAL.Modules.InventoryDebug.Init(ASTRAL.Core)
-end
-
-
-print("ASTRAL Framework Loaded Successfully (SafeMode Edition)")
-print("Loaded Core Modules:")
-for name, module in pairs(ASTRAL.Core) do
-    print(" -", name, module)
-end
-
+print("ASTRAL Framework Loaded Successfully (Clean Edition)")
 
 return ASTRAL
