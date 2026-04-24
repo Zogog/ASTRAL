@@ -7,6 +7,9 @@ warn("ASTRAL GITHUB VERSION LOADED (SafeMode Enabled)")
 
 local REPO = "https://raw.githubusercontent.com/Zogog/ASTRAL/main/"
 
+-- Track which modules have already thrown errors (prevents spam)
+getgenv().ASTRAL_SILENCE = getgenv().ASTRAL_SILENCE or {}
+
 local function safeImport(path)
     local url = REPO .. path
 
@@ -115,13 +118,22 @@ if ASTRAL.UI.Tabs and ASTRAL.UI.Tabs.Create then
     end
 end
 
--- Only feature modules need Init()
+--========================================================--
+--                 MODULE INIT (SPAM-SAFE)
+--========================================================--
+
 for name, module in pairs(ASTRAL.Modules) do
     if type(module) == "table" and module.Init then
         task.spawn(function()
             local ok, err = pcall(module.Init, Tabs, ASTRAL.Core, ASTRAL.UI)
+
             if not ok then
-                warn("[ASTRAL SafeMode] Init failed for module:", name, err)
+                -- Prevent console spam
+                if not getgenv().ASTRAL_SILENCE[name] then
+                    warn("[ASTRAL SafeMode] Init failed for module:", name)
+                    warn("Error:", err)
+                    getgenv().ASTRAL_SILENCE[name] = true
+                end
             else
                 print("[ASTRAL] Module initialized:", name)
             end
