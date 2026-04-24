@@ -66,10 +66,10 @@ local function BuildPetTable(API)
     local pets = {}
 
     for uid, data in pairs(inv) do
-        if data.id ~= "practice_dog" then
+        if data.kind ~= "practice_dog" then
             table.insert(pets, {
                 id = uid,               -- unique pet instance ID
-                kind = data.id,         -- pet type
+                kind = data.kind,       -- ⭐ correct pet type
                 properties = data.properties,
             })
         end
