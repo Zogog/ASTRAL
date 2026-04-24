@@ -93,6 +93,8 @@ ASTRAL.Modules.AutoEggs    = safeImport("Modules/AutoEggs.lua")
 ASTRAL.Modules.BabyFarm    = safeImport("Modules/BabyFarm.lua")
 ASTRAL.Modules.Webhooks    = safeImport("Modules/Webhooks.lua")
 
+ASTRAL.Modules.InventoryDebug = safeImport("Modules/InventoryDebug.lua")
+
 --========================================================--
 --                 ASTRAL INITIALIZATION
 --========================================================--
@@ -144,6 +146,11 @@ for name, module in pairs(ASTRAL.Modules) do
         end
     end
 end
+
+if ASTRAL.Modules.InventoryDebug then
+    ASTRAL.Modules.InventoryDebug.Init(ASTRAL.Core)
+end
+
 
 print("ASTRAL Framework Loaded Successfully (SafeMode Edition)")
 
