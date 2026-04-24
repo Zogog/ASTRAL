@@ -1,6 +1,8 @@
 --========================================================--
 --                  A S T R A L   H U B
 --========================================================--
+warn("ASTRAL GITHUB VERSION LOADED")
+
 
 local REPO = "https://raw.githubusercontent.com/Zogog/ASTRAL/refs/heads/main/"
 
