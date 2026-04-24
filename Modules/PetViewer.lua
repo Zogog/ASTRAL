@@ -58,6 +58,34 @@ local function GetPetEmoji(props)
 end
 
 --========================================================--
+-- UNIVERSAL EQUIP WRAPPER
+--========================================================--
+
+local function TryEquip(API, pet)
+    local id = pet.id
+    local kind = pet.kind
+
+    local attempts = {
+        function() return API.EquipPet(id) end,
+        function() return API.EquipPet(kind) end,
+        function() return API.EquipPet(id, true) end,
+        function() return API.EquipPet(id, false) end,
+        function() return API.EquipPet({ id = id }) end,
+        function() return API.EquipPet({ unique = id }) end,
+    }
+
+    for _, attempt in ipairs(attempts) do
+        local ok = pcall(attempt)
+        if ok then
+            return true
+        end
+    end
+
+    warn("[ASTRAL PetViewer] EquipPet failed for:", id, kind)
+    return false
+end
+
+--========================================================--
 -- BUILD PET TABLE
 --========================================================--
 
@@ -68,8 +96,8 @@ local function BuildPetTable(API)
     for id, data in pairs(inv) do
         if data.id ~= "practice_dog" then
             table.insert(pets, {
-                id = id,
-                kind = data.id,
+                id = id,                -- unique pet instance ID
+                kind = data.id,         -- pet type (shadow_dragon, neon_dog, etc.)
                 properties = data.properties,
             })
         end
@@ -138,7 +166,7 @@ function PetViewer.Init(Tabs, Core, UI)
                     local pet = PetLookup[selected]
                     if not pet then return end
 
-                    API.EquipPet(pet.id)
+                    TryEquip(API, pet)
 
                     Details:Set({
                         Title = "Pet Details",
