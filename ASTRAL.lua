@@ -56,11 +56,11 @@ ASTRAL.Modules.Webhooks    = import("Modules/Webhooks.lua")
 local Window = ASTRAL.UI.RayfieldInit.Init()
 local Tabs = ASTRAL.UI.Tabs.Create(Window)
 
-for _, folder in pairs({ASTRAL.Core, ASTRAL.Modules}) do
+for _, folder in pairs({ASTRAL.Modules}) do
     for name, module in pairs(folder) do
         if type(module) == "table" and module.Init then
             task.spawn(function()
-                module.Init(Tabs, ASTRAL.Core.AdoptMeAPI)
+                module.Init(Tabs, ASTRAL.Core, ASTRAL.UI)
             end)
         end
     end
