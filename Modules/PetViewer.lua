@@ -1,5 +1,6 @@
 --========================================================--
---                 ASTRAL.Modules.PetViewer (Fixed)
+--                 ASTRAL.Modules.PetViewer
+--        Restored Version (Dropdown Equips Directly)
 --========================================================--
 
 local PetViewer = {}
@@ -47,19 +48,21 @@ function PetViewer.Init(Tabs, Core, UI)
 
     tab:CreateSection("Pet Viewer")
 
-    --------------------------------------------------------
-    -- UI Elements
-    --------------------------------------------------------
-
     local PetListLabel = tab:CreateLabel("Loading pets...", "paw-print")
+
+    --------------------------------------------------------
+    -- Dropdown (UID-based, equips directly)
+    --------------------------------------------------------
 
     local Dropdown = tab:CreateDropdown({
         Name = "Select Pet",
         Options = {},
         CurrentOption = "",
         MultipleOptions = false,
-        Callback = function(option)
-            local pet = PetViewer.Map[option]
+        Callback = function(petId)
+            if not petId then return end
+
+            local pet = PetViewer.Map[petId]
             if not pet then return end
 
             PetViewer.Selected = pet
@@ -73,31 +76,17 @@ function PetViewer.Init(Tabs, Core, UI)
                     pet.id
                 ),
             })
+
+            -- Equip IMMEDIATELY (like before)
+            if Core.SetEquippedPet then
+                Core.SetEquippedPet(pet.id)
+            end
         end,
     })
 
     local Details = tab:CreateParagraph({
         Title = "Pet Details",
         Content = "Select a pet to view details.",
-    })
-
-    --------------------------------------------------------
-    -- EQUIP BUTTON (FIXED)
-    --------------------------------------------------------
-
-    tab:CreateButton({
-        Name = "Equip Selected Pet",
-        Callback = function()
-            local pet = PetViewer.Selected
-            if not pet then return end
-
-            -- Use ASTRAL's universal equip wrapper
-            if Core.SetEquippedPet then
-                Core.SetEquippedPet(pet.id)
-            else
-                warn("[PetViewer] Core.SetEquippedPet missing")
-            end
-        end,
     })
 
     --------------------------------------------------------
@@ -142,18 +131,24 @@ function PetViewer.Init(Tabs, Core, UI)
         end
 
         local pets = {}
+        local map = {}
 
         for id, data in pairs(inv.pets) do
             if data.id ~= "practice_dog" then
-                table.insert(pets, {
+                local pet = {
                     id = id,
                     kind = data.id,
                     properties = data.properties or {},
-                })
+                }
+
+                table.insert(pets, pet)
+                map[id] = pet
             end
         end
 
         PetViewer.All = pets
+        PetViewer.Map = map
+
         PetViewer.Refresh()
     end
 
@@ -165,8 +160,6 @@ function PetViewer.Init(Tabs, Core, UI)
         if not PetViewer.All then return end
 
         local list = {}
-        local map = {}
-
         local search = PetViewer.SearchText or ""
 
         -- Filter
@@ -200,23 +193,24 @@ function PetViewer.Init(Tabs, Core, UI)
             end)
         end
 
-        -- Build dropdown list
+        -- Build dropdown list (UID-based)
         local display = {}
 
         for _, pet in ipairs(list) do
             local props = pet.properties
-            local entry = string.format(
+            local label = string.format(
                 "%s%s (%s)",
                 GetEmoji(props),
                 pet.kind,
                 GetAgeName(props)
             )
 
-            map[entry] = pet
-            table.insert(display, entry)
+            -- Dropdown shows label but returns UID
+            table.insert(display, {
+                Name = label,
+                Value = pet.id,
+            })
         end
-
-        PetViewer.Map = map
 
         Dropdown:Refresh(display)
 
