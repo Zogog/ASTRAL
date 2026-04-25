@@ -36,23 +36,56 @@ local function WaitTick()
 end
 
 --========================================================--
---                 MOVEMENT SYSTEM
+--                 MOVEMENT SYSTEM (CLEAN REWRITE)
 --========================================================--
 
+local platformPart = nil
+
+local function ensurePlatform()
+    if not platformPart then
+        platformPart = Instance.new("Part")
+        platformPart.Name = "ASTRAL_AutoNeedsPlatform"
+        platformPart.Size = Vector3.new(200, 2, 200)
+        platformPart.Anchored = true
+        platformPart.CanCollide = true
+        platformPart.Color = Color3.fromRGB(60, 60, 60)
+        platformPart.Parent = workspace
+    end
+    return platformPart
+end
+
 local function DoMovement(mode)
+    local player = game.Players.LocalPlayer
+    local char = player.Character
+    if not char then return end
+
+    local hum = char:FindFirstChild("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not hum or not root then return end
+
+    -- ⭐ IDLE MODE — DO NOTHING (WalkSpeed works normally)
     if mode == "Idle" then
         return
     end
 
-    local root = game.Players.LocalPlayer.Character
-        and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-
+    -- ⭐ PLATFORM MODE — Move platform under player (NOT the player)
     if mode == "Platform" then
-        root.CFrame = root.CFrame + Vector3.new(0, 0.1, 0)
-    elseif mode == "Circle" then
+        local p = ensurePlatform()
+        p.Position = root.Position - Vector3.new(0, hum.HipHeight + 3, 0)
+        return
+    end
+
+    -- ⭐ CIRCLE MODE — TBIGUI-style MoveTo() (NO CFrame override)
+    if mode == "Circle" then
         local t = tick()
-        root.CFrame = root.CFrame * CFrame.new(math.sin(t) * 0.5, 0, math.cos(t) * 0.5)
+        local radius = 5
+        local speed = 2
+
+        local x = math.cos(t * speed) * radius
+        local z = math.sin(t * speed) * radius
+
+        hum:MoveTo(root.Position + Vector3.new(x, 0, z))
+        return
     end
 end
 
@@ -159,7 +192,7 @@ local function SolveAll(API, ailments)
 end
 
 --========================================================--
---                 MAIN LOOP
+--                 MAIN LOOP (CLEANED)
 --========================================================--
 
 local function StartLoop(API)
@@ -169,6 +202,7 @@ local function StartLoop(API)
     while running do
         task.wait()
 
+        -- ⭐ Movement first (safe, non-CFrame)
         DoMovement(MovementMode)
 
         if not Selected.Pet1 then
